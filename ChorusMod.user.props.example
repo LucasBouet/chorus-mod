@@ -1,0 +1,15 @@
+<!--
+  Copie ce fichier en "ChorusMod.user.props" (sans .example) et adapte le
+  chemin. Ce fichier est local : il n'est pas suivi par git, donc chacun
+  peut avoir son propre chemin sans conflit.
+
+  Windows  : C:\Games\Clone Hero
+  Linux    : /home/<user>/.local/share/Steam/steamapps/common/Clone Hero
+  Flatpak  : /home/<user>/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Clone Hero
+  macOS    : /Users/<user>/Library/Application Support/Steam/steamapps/common/Clone Hero
+-->
+<Project>
+  <PropertyGroup>
+    <CloneHeroDir>/home/&lt;user&gt;/.local/share/Steam/steamapps/common/Clone Hero</CloneHeroDir>
+  </PropertyGroup>
+</Project>

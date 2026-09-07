@@ -1,0 +1,9 @@
+bin/
+obj/
+*.user
+ChorusMod.user.props
+
+# Installer build artifacts (téléchargés / compilés, pas du code source)
+installer/bepinex/
+installer/Output/
+installer/*.dll

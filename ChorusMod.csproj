@@ -1,0 +1,114 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Chemin du jeu : AUCUN chemin n'est codé en dur ici.
+    Résolution, dans l'ordre :
+      1. ChorusMod.user.props (fichier local, ignoré par git)   <- recommandé
+      2. variable d'environnement CLONEHERO_DIR
+      3. -p:CloneHeroDir=... en ligne de commande
+      4. emplacement par défaut de la plateforme (dernier recours)
+  -->
+  <Import Project="ChorusMod.user.props" Condition="Exists('ChorusMod.user.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>ChorusMod</AssemblyName>
+    <RootNamespace>ChorusMod</RootNamespace>
+    <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 2. Variable d'environnement -->
+    <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And '$(CLONEHERO_DIR)' != ''">$(CLONEHERO_DIR)</CloneHeroDir>
+
+    <!-- 4. Valeurs par défaut plausibles selon l'OS -->
+    <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Steam\steamapps\common\Clone Hero</CloneHeroDir>
+    <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/Steam/steamapps/common/Clone Hero</CloneHeroDir>
+    <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/Steam/steamapps/common/Clone Hero</CloneHeroDir>
+
+    <!--
+      MSBuild accepte les slashes avant sur toutes les plateformes et les
+      convertit au besoin : on n'écrit donc jamais d'antislash ici.
+    -->
+    <BepInExDir>$(CloneHeroDir)/BepInEx</BepInExDir>
+    <InteropDir>$(BepInExDir)/interop</InteropDir>
+    <BepInExCoreDir>$(BepInExDir)/core</BepInExCoreDir>
+  </PropertyGroup>
+
+  <!--
+    Message d'erreur explicite plutôt qu'une avalanche de CS0246 quand le
+    chemin est faux : les assemblies d'interop ne sont générées qu'au
+    PREMIER lancement du jeu avec BepInEx installé.
+  -->
+  <Target Name="VerifierCheminJeu" BeforeTargets="BeforeBuild">
+    <Error
+      Condition="!Exists('$(InteropDir)')"
+      Text="Dossier d'interop introuvable : $(InteropDir)%0ARenseigne le chemin du jeu via ChorusMod.user.props, la variable CLONEHERO_DIR, ou -p:CloneHeroDir=...%0AVérifie aussi que le jeu a été lancé au moins une fois avec BepInEx : c'est ce lancement qui génère BepInEx/interop." />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.755" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Private=false : ces DLLs existent déjà côté jeu. Les copier dans la
+      sortie créerait un doublon de version au chargement.
+    -->
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(BepInExCoreDir)/Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- MonoBehaviour hérite in fine de Il2CppSystem.Object -->
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(InteropDir)/Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppSystem">
+      <HintPath>$(InteropDir)/Il2CppSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(InteropDir)/UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- OnGUI / GUILayout -->
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(InteropDir)/UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- TextAnchor / FontStyle des GUIStyle -->
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(InteropDir)/UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(InteropDir)/UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- UnityWebRequestTexture : jaquettes -->
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(InteropDir)/UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestTextureModule">
+      <HintPath>$(InteropDir)/UnityEngine.UnityWebRequestTextureModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- ReInput.controllers.Keyboard -->
+    <Reference Include="Rewired_Core">
+      <HintPath>$(InteropDir)/Rewired_Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- Type SongScan -->
+    <Reference Include="CloneHero">
+      <HintPath>$(InteropDir)/CloneHero.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
