@@ -37,113 +37,113 @@ public class Plugin : BasePlugin
             "General",
             "SongsFolder",
             DetectSongsFolder(),
-            "Dossier où les charts téléchargées sont installées. "
-                + "Doit être un des dossiers que Clone Hero scanne."
+            "Folder where downloaded charts are installed. "
+                + "Must be one of the folders Clone Hero scans."
         );
 
         ToggleKey = Config.Bind(
             "General",
             "ToggleKey",
             KeyCode.F9,
-            "Touche pour ouvrir/fermer la fenêtre de recherche."
+            "Key to open/close the search window."
         );
 
         BlockGameInput = Config.Bind(
             "General",
             "BlockGameInput",
             true,
-            "Coupe le contrôleur clavier de Rewired pendant que le panneau "
-                + "est ouvert, pour que les touches tapées ne déclenchent pas "
-                + "les raccourcis de Clone Hero (Espace, etc.). Les manettes "
-                + "et guitares restent actives. Mets à false en cas de souci."
+            "Disables Rewired's keyboard controller while the panel is "
+                + "open, so typed keys don't trigger Clone Hero's shortcuts "
+                + "(Space, etc.). Controllers and guitars stay active. Set "
+                + "to false if you run into issues."
         );
 
         FullScan = Config.Bind(
             "General",
             "FullScan",
             false,
-            "false = scan incrémental après installation (rapide). Passe à "
-                + "true si les nouveaux morceaux n'apparaissent pas."
+            "false = incremental scan after install (fast). Set to true if "
+                + "new songs don't show up."
         );
 
         PanelWidth = Config.Bind(
             "General",
             "PanelWidth",
             1180f,
-            "Largeur de l'overlay en pixels. Monte-la sur un grand écran."
+            "Overlay width in pixels. Increase it on a large screen."
         );
 
         PanelHeight = Config.Bind(
             "General",
             "PanelHeight",
             780f,
-            "Hauteur de l'overlay en pixels."
+            "Overlay height in pixels."
         );
 
         ShowAlbumArt = Config.Bind(
             "General",
             "ShowAlbumArt",
             true,
-            "Affiche les jaquettes dans la liste. Passe à false si le "
-                + "chargement des images pose problème ou ralentit."
+            "Shows album art in the list. Set to false if loading images "
+                + "causes issues or slowdowns."
         );
 
         PanelOpacityLayers = Config.Bind(
             "General",
             "PanelOpacityLayers",
             8,
-            "Opacité du fond du panneau quand la teinte GUI.color n'est pas "
-                + "disponible : nombre de passes de dessin empilées. "
-                + "Augmente si le fond reste trop transparent."
+            "Panel background opacity when the GUI.color tint isn't "
+                + "available: number of stacked draw passes. Increase if "
+                + "the background stays too transparent."
         );
 
-        // Endpoint confirmé par capture réseau du site (POST + body JSON).
+        // Endpoint confirmed by network capture of the site (POST + JSON body).
         ApiBaseUrl = Config.Bind(
             "API",
             "BaseUrl",
             "https://api.enchor.us",
-            "Base URL de l'API Chorus Encore."
+            "Base URL of the Chorus Encore API."
         );
 
         SearchEndpoint = Config.Bind(
             "API",
             "SearchEndpoint",
             "/search",
-            "Chemin de l'endpoint de recherche (appelé en POST)."
+            "Path of the search endpoint (called via POST)."
         );
 
         FilesBaseUrl = Config.Bind(
             "API",
             "FilesBaseUrl",
             "https://files.enchor.us",
-            "Hôte des fichiers, utilisé pour reconstruire un lien de "
-                + "téléchargement quand la réponse ne fournit qu'un hash."
+            "File host, used to rebuild a download link when the response "
+                + "only provides a hash."
         );
 
         Instrument = Config.Bind(
             "API",
             "Instrument",
             "guitar",
-            "Filtre instrument envoyé au serveur (guitar, bass, drums, "
-                + "keys, vocals…). Mets 'null' pour ne pas filtrer."
+            "Instrument filter sent to the server (guitar, bass, drums, "
+                + "keys, vocals…). Set to 'null' to not filter."
         );
 
         LogRawResponse = Config.Bind(
             "API",
             "LogRawResponse",
             true,
-            "Écrit le JSON brut du premier résultat dans le log. Utile pour "
-                + "ajuster le parsing ; à repasser à false une fois que tout "
-                + "fonctionne."
+            "Writes the raw JSON of the first result to the log. Useful "
+                + "for tuning parsing; set back to false once everything "
+                + "works."
         );
 
-        Logger.LogInfo($"Chorus Mod chargé. Dossier Songs : '{SongsFolder.Value}'");
+        Logger.LogInfo($"Chorus Mod loaded. Songs folder: '{SongsFolder.Value}'");
         if (string.IsNullOrWhiteSpace(SongsFolder.Value))
         {
             Logger.LogWarning(
-                "Aucun dossier Songs détecté automatiquement. Renseigne "
-                    + "SongsFolder dans BepInEx/config/fr.lucas.chorus-mod.cfg, "
-                    + "sinon les téléchargements échoueront."
+                "No Songs folder auto-detected. Set SongsFolder in "
+                    + "BepInEx/config/fr.lucas.chorus-mod.cfg, otherwise "
+                    + "downloads will fail."
             );
         }
 
@@ -152,8 +152,8 @@ public class Plugin : BasePlugin
             InputPatches.Apply("fr.lucas.chorus-mod");
         }
 
-        // Un MonoBehaviour custom doit être enregistré auprès du runtime
-        // IL2CPP avant de pouvoir être attaché à un GameObject.
+        // A custom MonoBehaviour must be registered with the IL2CPP runtime
+        // before it can be attached to a GameObject.
         ClassInjector.RegisterTypeInIl2Cpp<ChorusUI>();
 
         var host = new GameObject("ChorusMod.UI");
@@ -161,16 +161,15 @@ public class Plugin : BasePlugin
         host.hideFlags = HideFlags.HideAndDontSave;
         host.AddComponent<ChorusUI>();
 
-        Logger.LogInfo($"Appuie sur {ToggleKey.Value} en jeu pour ouvrir Chorus Mod.");
+        Logger.LogInfo($"Press {ToggleKey.Value} in-game to open Chorus Mod.");
     }
 
-    /// Best-effort, multiplateforme : cherche un dossier Songs plausible.
+    /// Best-effort, cross-platform: looks for a plausible Songs folder.
     ///
-    /// Clone Hero laisse l'utilisateur définir ses propres chemins de
-    /// bibliothèque, donc aucune détection ne peut être fiable à 100 % --
-    /// d'où le réglage SongsFolder en secours. On ne code en dur aucun
-    /// chemin absolu : tout est reconstruit depuis les dossiers spéciaux
-    /// de l'OS et depuis l'emplacement réel du jeu.
+    /// Clone Hero lets the user set their own library paths, so no
+    /// detection can be 100% reliable -- hence the SongsFolder setting as a
+    /// fallback. No absolute path is hardcoded: everything is rebuilt from
+    /// the OS's special folders and from the game's actual location.
     private static string DetectSongsFolder()
     {
         foreach (var path in CandidateSongFolders())
@@ -186,7 +185,7 @@ public class Plugin : BasePlugin
 
     private static IEnumerable<string> CandidateSongFolders()
     {
-        // 1. À côté de l'exécutable : valable sur toutes les plateformes.
+        // 1. Next to the executable: valid on every platform.
         yield return Path.Combine(Paths.GameRootPath, "Songs");
 
         var documents = Environment.GetFolderPath(
@@ -196,8 +195,8 @@ public class Plugin : BasePlugin
             Environment.SpecialFolder.UserProfile
         );
 
-        // 2. Emplacement « à la Windows », qui existe aussi sous Proton et
-        //    que .NET mappe vers ~/Documents sous Linux.
+        // 2. "Windows-style" location, which also exists under Proton and
+        //    that .NET maps to ~/Documents on Linux.
         if (!string.IsNullOrEmpty(documents))
         {
             yield return Path.Combine(documents, "Clone Hero", "Songs");
@@ -209,15 +208,15 @@ public class Plugin : BasePlugin
             yield break;
         }
 
-        // 3. Conventions Linux/XDG.
+        // 3. Linux/XDG conventions.
         yield return Path.Combine(home, "Clone Hero", "Songs");
         yield return Path.Combine(home, ".local", "share", "Clone Hero", "Songs");
         yield return Path.Combine(home, "Music", "Clone Hero", "Songs");
         yield return Path.Combine(home, "Musique", "Clone Hero", "Songs");
 
-        // 4. Préfixe Proton : quand le build Windows tourne sous Steam Play,
-        //    « Mes documents » vit dans le prefix Wine du jeu. On remonte
-        //    depuis le dossier du jeu plutôt que de deviner l'AppID.
+        // 4. Proton prefix: when the Windows build runs under Steam Play,
+        //    "My Documents" lives inside the game's Wine prefix. We walk up
+        //    from the game folder instead of guessing the AppID.
         foreach (var path in ProtonPrefixCandidates())
         {
             yield return path;

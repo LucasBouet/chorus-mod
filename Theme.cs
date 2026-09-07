@@ -3,27 +3,27 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-/// Thème de l'overlay.
+/// Overlay theme.
 ///
-/// CONTRAINTES IL2CPP (constatées à la compilation contre les interop
-/// assemblies de cette build) : les constructeurs Texture2D(int,int) et
-/// RectOffset(int,int,int,int) n'ont pas été restaurés par Cpp2IL. On ne
-/// peut donc PAS fabriquer de textures ni de RectOffset.
+/// IL2CPP CONSTRAINTS (observed when compiling against this build's interop
+/// assemblies): the Texture2D(int,int) and RectOffset(int,int,int,int)
+/// constructors weren't restored by Cpp2IL. So textures and RectOffsets
+/// can't be constructed.
 ///
-/// Parade : on n'utilise que Texture2D.whiteTexture (propriété statique)
-/// teintée via GUI.color pour tous les aplats de couleur, et les GUIStyle
-/// se limitent aux propriétés sûres (fontSize, textColor, alignment).
+/// Workaround: only Texture2D.whiteTexture (a static property) tinted via
+/// GUI.color is used for all solid-color fills, and GUIStyles are limited
+/// to safe properties (fontSize, textColor, alignment).
 public static class Theme
 {
     public static bool Ready { get; private set; }
     public static bool Failed { get; private set; }
 
-    /// GUI.color n'est pas forcément utilisable (encore une méthode
-    /// potentiellement non restaurée). Testé une fois au premier rendu :
-    /// si la teinte échoue, on peint en empilant des GUI.Box à la place.
+    /// GUI.color isn't necessarily usable (yet another method that might not
+    /// be restored). Tested once on first render: if tinting fails, we
+    /// paint by stacking GUI.Box instead.
     public static bool TintOk { get; private set; }
 
-    // Palette sombre, accents repris des 5 frets de Clone Hero.
+    // Dark palette, accents taken from Clone Hero's 5 frets.
     public static readonly Color Bg = new Color(0.07f, 0.08f, 0.10f, 0.96f);
     public static readonly Color RowEven = new Color(1f, 1f, 1f, 0.04f);
     public static readonly Color RowOdd = new Color(1f, 1f, 1f, 0.02f);
@@ -44,7 +44,7 @@ public static class Theme
     public static GUIStyle Field = null!;
     public static GUIStyle Status = null!;
 
-    /// À appeler depuis OnGUI : GUI.skin n'est valide que là.
+    /// Call from OnGUI: GUI.skin is only valid there.
     public static void EnsureInit()
     {
         if (Ready || Failed)
@@ -82,7 +82,7 @@ public static class Theme
 
             TintOk = ProbeTint();
             Plugin.Logger.LogInfo(
-                $"Teinte GUI.color : {(TintOk ? "OK" : "HS -> repli sur GUI.Box empilées")}"
+                $"GUI.color tint: {(TintOk ? "OK" : "broken -> falling back to stacked GUI.Box")}"
             );
 
             Ready = true;
@@ -91,7 +91,7 @@ public static class Theme
         {
             Failed = true;
             Plugin.Logger.LogWarning(
-                $"Thème indisponible, skin Unity par défaut : {e.Message}"
+                $"Theme unavailable, using default Unity skin: {e.Message}"
             );
         }
     }
@@ -100,8 +100,8 @@ public static class Theme
     {
         try
         {
-            // On teste GUI.color seul : le dessin, lui, passe désormais par
-            // DrawImage() et sa cascade.
+            // We only test GUI.color here: actual drawing now goes through
+            // DrawImage() and its fallback cascade.
             var previous = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, 0.5f);
             GUI.color = previous;
@@ -113,11 +113,11 @@ public static class Theme
         }
     }
 
-    /// Aplat de couleur.
+    /// Solid color fill.
     ///
-    /// Voie normale : whiteTexture teintée par GUI.color.
-    /// Repli (TintOk == false) : on empile des GUI.Box translucides, ce qui
-    /// assombrit progressivement — sans couleur, mais avec de l'opacité.
+    /// Normal path: whiteTexture tinted by GUI.color.
+    /// Fallback (TintOk == false): stack translucent GUI.Box, which darkens
+    /// progressively — no color, but with opacity.
     public static void Fill(Rect rect, Color color, int fallbackLayers = 3)
     {
         if (TintOk)
@@ -129,8 +129,8 @@ public static class Theme
                 DrawImage(rect, Texture2D.whiteTexture);
                 GUI.color = previous;
 
-                // Si aucun mode de dessin n'a fonctionné, la teinte ne sert
-                // à rien : on bascule définitivement sur les Box empilées.
+                // If no drawing mode worked, tinting is useless: switch
+                // permanently to stacked Boxes.
                 if (_imageMode == 6)
                 {
                     TintOk = false;
@@ -142,7 +142,7 @@ public static class Theme
             }
             catch (Exception)
             {
-                // On ne réessaiera plus.
+                // Won't retry anymore.
             }
         }
 
@@ -155,25 +155,24 @@ public static class Theme
         }
         catch (Exception)
         {
-            // Rien de plus à tenter.
+            // Nothing more to try.
         }
     }
 
-    /// Dessine une texture.
+    /// Draws a texture.
     ///
-    /// GUI.DrawTexture s'est révélé non restauré sur cette build (c'est lui,
-    /// et non GUI.color, qui faisait échouer la sonde de teinte). On tente
-    /// donc plusieurs surcharges acceptant directement une Texture, et on
-    /// mémorise celle qui passe pour ne pas relancer la cascade à chaque
-    /// frame.
-    /// -1 = à déterminer, 6 = aucune méthode disponible.
+    /// GUI.DrawTexture turned out not to be restored on this build (it's
+    /// this one, not GUI.color, that made the tint probe fail). So several
+    /// overloads accepting a Texture directly are tried, and whichever one
+    /// works is remembered so the cascade doesn't rerun every frame.
+    /// -1 = to be determined, 6 = no method available.
     private static int _imageMode = -1;
 
-    /// Style jetable dont on remplace le fond avant chaque dessin.
-    /// C'est le cœur du contournement : GUI.Box sait dessiner le fond d'un
-    /// GUIStyle (c'est ce qu'elle fait avec le skin par défaut), et ce
-    /// chemin de rendu est bien présent dans le binaire — contrairement
-    /// aux points d'entrée directs type GUI.DrawTexture.
+    /// Disposable style whose background is swapped before each draw. This
+    /// is the core of the workaround: GUI.Box knows how to draw a
+    /// GUIStyle's background (that's what it does with the default skin),
+    /// and that rendering path is indeed present in the binary — unlike
+    /// direct entry points like GUI.DrawTexture.
     private static GUIStyle? _imageStyle;
 
     public static void DrawImage(Rect rect, Texture texture)
@@ -187,10 +186,10 @@ public static class Theme
         {
             _imageMode = DetectImageMode(rect, texture);
             Plugin.Logger.LogInfo(
-                $"Affichage d'images : mode {_imageMode} (0=GUI.DrawTexture, "
+                $"Image rendering: mode {_imageMode} (0=GUI.DrawTexture, "
                     + "1=GUI.Label, 2=GUI.Box, 3=Graphics.DrawTexture, "
-                    + "4=DrawTextureWithTexCoords, 5=fond de GUIStyle, "
-                    + "6=indisponible)"
+                    + "4=DrawTextureWithTexCoords, 5=GUIStyle background, "
+                    + "6=unavailable)"
             );
         }
 
@@ -233,7 +232,7 @@ public static class Theme
         }
         catch (Exception)
         {
-            // suivant
+            // next
         }
 
         try
@@ -243,7 +242,7 @@ public static class Theme
         }
         catch (Exception)
         {
-            // suivant
+            // next
         }
 
         try
@@ -253,12 +252,12 @@ public static class Theme
         }
         catch (Exception)
         {
-            // suivant
+            // next
         }
 
-        // Graphics.DrawTexture est un icall (appel direct au moteur natif).
-        // Les icalls survivent souvent au stripping managé, contrairement
-        // aux wrappers C# comme GUI.DrawTexture.
+        // Graphics.DrawTexture is an icall (direct call into the native
+        // engine). Icalls often survive managed stripping, unlike C#
+        // wrappers like GUI.DrawTexture.
         try
         {
             Graphics.DrawTexture(rect, texture);
@@ -266,7 +265,7 @@ public static class Theme
         }
         catch (Exception)
         {
-            // suivant
+            // next
         }
 
         try
@@ -276,7 +275,7 @@ public static class Theme
         }
         catch (Exception)
         {
-            // suivant
+            // next
         }
 
         try
@@ -290,17 +289,17 @@ public static class Theme
         }
     }
 
-    /// Dessine une texture en la posant comme fond d'un GUIStyle, puis en
-    /// affichant une GUI.Box vide avec ce style.
+    /// Draws a texture by setting it as a GUIStyle's background, then
+    /// displaying an empty GUI.Box with that style.
     private static void DrawViaStyle(Rect rect, Texture texture)
     {
         if (_imageStyle == null)
         {
             _imageStyle = new GUIStyle(GUI.skin.box);
 
-            // On neutralise les bordures 9-slice pour que l'image ne soit
-            // pas étirée en coins. RectOffset ne peut pas être construit
-            // sur cette build, mais on peut modifier l'instance existante.
+            // Neutralize the 9-slice borders so the image isn't stretched
+            // at the corners. RectOffset can't be constructed on this
+            // build, but the existing instance can be modified.
             try
             {
                 _imageStyle.border.left = 0;
@@ -314,7 +313,7 @@ public static class Theme
             }
             catch (Exception)
             {
-                // Tant pis pour les bordures, l'essentiel est l'image.
+                // Too bad for the borders, the image is what matters.
             }
         }
 

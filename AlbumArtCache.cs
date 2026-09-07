@@ -6,15 +6,15 @@ using UnityEngine.Networking;
 namespace ChorusMod;
 
 /// <summary>
-/// Chargement des jaquettes depuis files.enchor.us.
+/// Loads album art from files.enchor.us.
 ///
-/// Le constructeur Texture2D(int, int) n'a pas été restauré par Cpp2IL sur
-/// cette build, donc impossible de décoder un JPEG à la main avec
-/// ImageConversion.LoadImage. Parade : UnityWebRequestTexture fabrique la
-/// texture côté natif — on n'appelle jamais le constructeur interdit.
+/// The Texture2D(int, int) constructor wasn't restored by Cpp2IL on this
+/// build, so decoding a JPEG by hand with ImageConversion.LoadImage is
+/// impossible. Workaround: UnityWebRequestTexture builds the texture
+/// natively — the forbidden constructor is never called.
 ///
-/// Pas de coroutine non plus (encore une API dont on ignore l'état) : les
-/// requêtes sont pompées depuis Update().
+/// No coroutines either (yet another API of unknown availability): requests
+/// are pumped from Update().
 /// </summary>
 public class AlbumArtCache
 {
@@ -31,15 +31,15 @@ public class AlbumArtCache
 
     public bool Disabled => _disabled;
 
-    /// Retourne la texture si elle est prête, sinon lance le chargement
-    /// et retourne null (l'appelant dessine un placeholder).
+    /// Returns the texture if ready, otherwise starts loading it and
+    /// returns null (the caller draws a placeholder).
     public Texture2D? Get(string key, string url)
     {
         if (!_loggedFirstCall)
         {
             _loggedFirstCall = true;
             Plugin.Logger.LogInfo(
-                $"Jaquettes — premier appel : key='{key}' url='{url}' "
+                $"Album art — first call: key='{key}' url='{url}' "
                     + $"disabled={_disabled}"
             );
         }
@@ -61,7 +61,7 @@ public class AlbumArtCache
 
         if (_pending.Count >= MaxConcurrent)
         {
-            return null; // on réessaiera à la frame suivante
+            return null; // we'll retry next frame
         }
 
         try
@@ -69,20 +69,20 @@ public class AlbumArtCache
             var request = UnityWebRequestTexture.GetTexture(url);
             request.SendWebRequest();
             _pending[key] = request;
-            Plugin.Logger.LogInfo($"Jaquette demandée : {url}");
+            Plugin.Logger.LogInfo($"Album art requested: {url}");
         }
         catch (Exception e)
         {
             _disabled = true;
             Plugin.Logger.LogWarning(
-                $"Jaquettes indisponibles sur cette build : {e.Message}"
+                $"Album art unavailable on this build: {e.Message}"
             );
         }
 
         return null;
     }
 
-    /// À appeler depuis Update() : récupère les requêtes terminées.
+    /// Call from Update(): collects completed requests.
     public void Pump()
     {
         if (_disabled || _pending.Count == 0)
@@ -113,8 +113,8 @@ public class AlbumArtCache
                 {
                     _loggedCompletions++;
                     Plugin.Logger.LogInfo(
-                        $"Jaquette terminée : code={request.responseCode} "
-                            + $"erreur='{request.error}' texture={(texture == null ? "null" : $"{texture.width}x{texture.height}")}"
+                        $"Album art completed: code={request.responseCode} "
+                            + $"error='{request.error}' texture={(texture == null ? "null" : $"{texture.width}x{texture.height}")}"
                     );
                 }
 
@@ -130,7 +130,7 @@ public class AlbumArtCache
             catch (Exception e)
             {
                 _failed.Add(key);
-                Plugin.Logger.LogWarning($"Jaquette non décodée : {e.Message}");
+                Plugin.Logger.LogWarning($"Album art decode failed: {e.Message}");
             }
             finally
             {
@@ -140,7 +140,7 @@ public class AlbumArtCache
                 }
                 catch (Exception)
                 {
-                    // Rien à faire.
+                    // Nothing to do.
                 }
             }
         }

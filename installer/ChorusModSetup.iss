@@ -1,30 +1,30 @@
 ; ============================================================================
-;  Chorus Mod for Clone Hero -- installeur Inno Setup (tout embarqué)
+;  Chorus Mod for Clone Hero -- Inno Setup installer (fully self-contained)
 ; ============================================================================
-;  Compile avec Inno Setup 6 (gratuit) : https://jrsoftware.org/isinfo.php
-;  Ouvre ce fichier dans l'IDE Inno Setup puis Build > Compile (Ctrl+F9).
+;  Build with Inno Setup 6 (free): https://jrsoftware.org/isinfo.php
+;  Open this file in the Inno Setup IDE, then Build > Compile (Ctrl+F9).
 ;
-;  AVANT DE COMPILER, ce dossier doit contenir :
-;    ChorusModSetup.iss   (ce fichier)
+;  BEFORE COMPILING, this folder must contain:
+;    ChorusModSetup.iss   (this file)
 ;    config-template.cfg
-;    ChorusMod.dll        (dotnet build -c Release, copiée depuis bin\Release\net6.0\)
-;    bepinex\             (BepInEx 6.0.0-be.755 win-x64, déjà dézippé --
+;    ChorusMod.dll        (dotnet build -c Release, copied from bin\Release\net6.0\)
+;    bepinex\             (BepInEx 6.0.0-be.755 win-x64, already unzipped --
 ;                           winhttp.dll, doorstop_config.ini,
-;                           .doorstop_version, changelog.txt à sa racine,
-;                           puis BepInEx\core\ et dotnet\)
+;                           .doorstop_version, changelog.txt at its root,
+;                           then BepInEx\core\ and dotnet\)
 ;
-;  RIEN N'EST TÉLÉCHARGÉ PENDANT L'INSTALLATION : tout est embarqué dans le
-;  Setup.exe généré. Aucune connexion internet requise côté utilisateur,
-;  aucun risque de lien mort.
+;  NOTHING IS DOWNLOADED DURING INSTALLATION: everything is bundled in the
+;  generated Setup.exe. No internet connection required on the user's side,
+;  no risk of dead links.
 ;
-;  CE QUE FAIT L'INSTALLEUR :
-;    - Demande le dossier Clone Hero (avec validation)
-;    - Propose des options (rescan complet, jaquettes, blocage clavier,
-;      taille du panneau)
-;    - Installe BepInEx 6.0.0-be.755 + ChorusMod.dll dans le jeu
-;    - Génère le .cfg pré-rempli selon les choix
-;    - Désinstalleur automatique (fichiers [Files] suivis nativement par
-;      Inno, + le .cfg généré retiré via [UninstallDelete])
+;  WHAT THE INSTALLER DOES:
+;    - Asks for the Clone Hero folder (with validation)
+;    - Offers options (full rescan, album art, keyboard blocking,
+;      panel size)
+;    - Installs BepInEx 6.0.0-be.755 + ChorusMod.dll into the game
+;    - Generates the pre-filled .cfg based on the choices made
+;    - Automatic uninstaller ([Files] entries tracked natively by
+;      Inno, + the generated .cfg removed via [UninstallDelete])
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
@@ -37,56 +37,51 @@ AppId={{5B6C9F2E-CHORUS-MOD-CLONE-HERO-0001}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-; Pas de vrai "Program Files" : l'appli s'installe DANS le dossier du jeu,
-; choisi par la personne à l'étape suivante. DefaultDirName n'est qu'un
-; repli si la détection auto (GuessGameDir, dans [Code]) ne trouve rien --
-; volontairement neutre, pas d'hypothèse Steam.
+; No real "Program Files": the app installs INSIDE the game folder,
+; chosen by the person in the next step. DefaultDirName is only a
+; fallback if auto-detection (GuessGameDir, in [Code]) finds nothing --
+; deliberately neutral, no Steam assumption.
 DefaultDirName=C:\Clone Hero
 DisableProgramGroupPage=yes
-; Dossier EXISTANT du jeu, pas un nouveau dossier à créer.
+; EXISTING game folder, not a new folder to create.
 DirExistsWarning=no
 PrivilegesRequired=lowest
 OutputBaseFilename=ChorusMod-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName={#MyAppName} pour Clone Hero
+UninstallDisplayName={#MyAppName} for Clone Hero
 
 [Languages]
-Name: "french"; MessagesFile: "compiler:Languages\French.isl"
-
-[Messages]
-french.SelectDirDesc=Choisis le dossier qui contient "Clone Hero.exe" (là où tu as installé ou extrait le jeu -- via Steam, ou téléchargé directement sur clonehero.net).
-french.SelectDirLabel3=Chorus Mod et BepInEx seront installés dans ce dossier EXISTANT du jeu :
-french.SelectDirBrowseLabel=Pour continuer, clique sur Suivant. Si tu veux choisir un autre dossier, clique sur Parcourir.
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-; --- Le plugin ---
+; --- The plugin ---
 Source: "ChorusMod.dll"; DestDir: "{app}\BepInEx\plugins\chorus"; Flags: ignoreversion
 
-; --- Gabarit de config : embarqué dans l'exe, pas copié tel quel --
-; lu et complété au runtime dans [Code] (voir CurStepChanged). {src} ne
-; fonctionne qu'au moment de la compilation, pas dans le Setup.exe final :
-; dontcopy + ExtractTemporaryFile est la façon correcte d'accéder à un
-; fichier auxiliaire depuis [Code] une fois l'installeur compilé.
+; --- Config template: bundled in the exe, not copied as-is --
+; read and filled in at runtime in [Code] (see CurStepChanged). {src} only
+; works at compile time, not in the final Setup.exe: dontcopy +
+; ExtractTemporaryFile is the correct way to access an auxiliary file from
+; [Code] once the installer is compiled.
 Source: "config-template.cfg"; DestDir: "{tmp}"; Flags: dontcopy
 
-; --- BepInEx : fichiers racine (à côté de Clone Hero.exe) ---
+; --- BepInEx: root files (next to Clone Hero.exe) ---
 Source: "bepinex\winhttp.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bepinex\doorstop_config.ini"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bepinex\.doorstop_version"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bepinex\changelog.txt"; DestDir: "{app}"; Flags: ignoreversion
 
-; --- BepInEx : moteur (dossiers plats, un seul caractère générique suffit) ---
+; --- BepInEx: engine (flat folders, a single wildcard is enough) ---
 Source: "bepinex\BepInEx\core\*"; DestDir: "{app}\BepInEx\core"; Flags: ignoreversion recursesubdirs
 
-; --- Runtime .NET embarqué par cette build CoreCLR (~67 Mo) ---
+; --- .NET runtime bundled by this CoreCLR build (~67 MB) ---
 Source: "bepinex\dotnet\*"; DestDir: "{app}\dotnet"; Flags: ignoreversion recursesubdirs
 
 [UninstallDelete]
-; Seul fichier généré dynamiquement (pas via [Files], donc pas suivi
-; automatiquement par le désinstalleur) : le .cfg selon les choix faits
-; à l'installation.
+; The only dynamically generated file (not via [Files], so not tracked
+; automatically by the uninstaller): the .cfg reflecting the choices made
+; at install time.
 Type: files; Name: "{app}\BepInEx\config\fr.lucas.chorus-mod.cfg"
 
 [Code]
@@ -98,10 +93,10 @@ var
   BtnBrowseSongs: TButton;
 
 // ---------------------------------------------------------------------
-//  Détection auto de quelques emplacements plausibles, juste pour
-//  pré-remplir le champ -- la personne garde la main pour corriger.
-//  Couvre Steam ET une install "portable" téléchargée sur clonehero.net,
-//  qui n'a pas d'emplacement standard.
+//  Auto-detects a few plausible locations, just to pre-fill the field --
+//  the person stays in control to correct it. Covers Steam AND a
+//  "portable" install downloaded from clonehero.net, which has no
+//  standard location.
 // ---------------------------------------------------------------------
 function GuessGameDir(): String;
 var
@@ -136,31 +131,31 @@ begin
     Dir := WizardForm.DirEdit.Text + '\Songs';
 
   if BrowseForFolder(
-    'Choisis le dossier où installer les morceaux téléchargés :', Dir, True
+    'Choose the folder where downloaded songs will be installed:', Dir, True
   ) then
     EdtSongsFolder.Text := Dir;
 end;
 
 // ---------------------------------------------------------------------
-//  Pages de l'assistant
+//  Wizard pages
 // ---------------------------------------------------------------------
 procedure InitializeWizard;
 var
   Guessed: String;
   Y: Integer;
 begin
-  // Pré-remplit le champ dossier standard d'Inno avec une détection auto ;
-  // la personne garde la main pour corriger.
+  // Pre-fills Inno's standard folder field with an auto-detection;
+  // the person stays in control to correct it.
   Guessed := GuessGameDir();
   if Guessed <> '' then
     WizardForm.DirEdit.Text := Guessed;
 
-  // --- Page d'options, insérée juste après la page dossier standard ---
+  // --- Options page, inserted right after the standard folder page ---
   OptionsPage := CreateCustomPage(
     wpSelectDir,
-    'Options de Chorus Mod',
-    'Réglages appliqués dès le premier lancement (modifiables ensuite '
-      + 'dans le fichier .cfg sans réinstaller).'
+    'Chorus Mod Options',
+    'Settings applied from the first launch onward (changeable later '
+      + 'in the .cfg file without reinstalling).'
   );
 
   Y := 0;
@@ -168,7 +163,7 @@ begin
   ChkFullScan.Parent := OptionsPage.Surface;
   ChkFullScan.Top := Y;
   ChkFullScan.Width := OptionsPage.SurfaceWidth;
-  ChkFullScan.Caption := 'Rescan complet après chaque installation';
+  ChkFullScan.Caption := 'Full rescan after each install';
   ChkFullScan.Checked := True;
   Y := Y + 18;
 
@@ -179,8 +174,8 @@ begin
     Left := 20;
     Width := OptionsPage.SurfaceWidth - 20;
     Caption :=
-      'Fortement recommandé : décoché, les morceaux téléchargés '
-        + 'n''apparaîtront pas automatiquement dans le jeu.';
+      'Strongly recommended: if unchecked, downloaded songs won''t '
+        + 'automatically show up in the game.';
     Font.Color := clGrayText;
   end;
   Y := Y + 24;
@@ -189,7 +184,7 @@ begin
   ChkAlbumArt.Parent := OptionsPage.Surface;
   ChkAlbumArt.Top := Y;
   ChkAlbumArt.Width := OptionsPage.SurfaceWidth;
-  ChkAlbumArt.Caption := 'Afficher les jaquettes dans les résultats';
+  ChkAlbumArt.Caption := 'Show album art in results';
   ChkAlbumArt.Checked := True;
   Y := Y + 24;
 
@@ -198,7 +193,7 @@ begin
   ChkBlockInput.Top := Y;
   ChkBlockInput.Width := OptionsPage.SurfaceWidth;
   ChkBlockInput.Caption :=
-    'Bloquer les touches du jeu pendant la saisie (evite Espace = Control Remapper)';
+    'Block game keys while typing (avoids Space = Control Remapper)';
   ChkBlockInput.Checked := True;
   Y := Y + 32;
 
@@ -206,7 +201,7 @@ begin
   begin
     Parent := OptionsPage.Surface;
     Top := Y;
-    Caption := 'Dossier d''installation des morceaux (Songs) :';
+    Caption := 'Songs install folder:';
   end;
   Y := Y + 20;
 
@@ -221,7 +216,7 @@ begin
   BtnBrowseSongs.Top := Y - 2;
   BtnBrowseSongs.Left := OptionsPage.SurfaceWidth - 80;
   BtnBrowseSongs.Width := 80;
-  BtnBrowseSongs.Caption := 'Parcourir';
+  BtnBrowseSongs.Caption := 'Browse';
   BtnBrowseSongs.OnClick := @BrowseSongsClicked;
   Y := Y + 24;
 
@@ -231,8 +226,8 @@ begin
     Top := Y;
     Width := OptionsPage.SurfaceWidth;
     Caption :=
-      'Doit être un dossier que Clone Hero scanne (vérifiable dans les '
-        + 'réglages du jeu). Laisse vide pour une détection automatique.';
+      'Must be a folder that Clone Hero scans (check the game''s '
+        + 'settings). Leave empty for auto-detection.';
     Font.Color := clGrayText;
   end;
   Y := Y + 30;
@@ -241,7 +236,7 @@ begin
   begin
     Parent := OptionsPage.Surface;
     Top := Y;
-    Caption := 'Taille du panneau :';
+    Caption := 'Panel size:';
   end;
   Y := Y + 20;
 
@@ -251,15 +246,15 @@ begin
   CmbPanelSize.Width := 220;
   CmbPanelSize.Style := csDropDownList;
   CmbPanelSize.Items.Add('Normal (1180x780)');
-  CmbPanelSize.Items.Add('Grand (1400x900)');
+  CmbPanelSize.Items.Add('Large (1400x900)');
   CmbPanelSize.Items.Add('Compact (900x600)');
   CmbPanelSize.ItemIndex := 0;
 end;
 
 // ---------------------------------------------------------------------
-//  Suggestion de dossier Songs dès l'arrivée sur la page d'options,
-//  une seule fois -- si la personne revient en arrière et modifie le
-//  dossier du jeu, on ne veut pas écraser un choix déjà fait à la main.
+//  Suggests a Songs folder as soon as the options page is reached, only
+//  once -- if the person goes back and changes the game folder, we don't
+//  want to overwrite a choice they already made by hand.
 // ---------------------------------------------------------------------
 procedure CurPageChanged(CurPageID: Integer);
 begin
@@ -268,7 +263,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------
-//  Validation : le dossier choisi doit vraiment contenir le jeu.
+//  Validation: the chosen folder must actually contain the game.
 // ---------------------------------------------------------------------
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
@@ -282,10 +277,10 @@ begin
     if not FileExists(Dir + '\Clone Hero.exe') then
     begin
       MsgBox(
-        '"Clone Hero.exe" est introuvable dans ce dossier :' + #13#10 + Dir
-          + #13#10#13#10 + 'Vérifie le chemin : c''est le dossier où se '
-          + 'trouve "Clone Hero.exe", que le jeu vienne de Steam ou d''un '
-          + 'téléchargement direct sur clonehero.net.',
+        '"Clone Hero.exe" was not found in this folder:' + #13#10 + Dir
+          + #13#10#13#10 + 'Check the path: it should be the folder '
+          + 'containing "Clone Hero.exe", whether the game came from '
+          + 'Steam or a direct download from clonehero.net.',
         mbError, MB_OK
       );
       Result := False;
@@ -294,7 +289,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------
-//  Utilitaires
+//  Utilities
 // ---------------------------------------------------------------------
 function BoolToCfg(B: Boolean): String;
 begin
@@ -302,9 +297,9 @@ begin
 end;
 
 // ---------------------------------------------------------------------
-//  Étape principale : appelée après la copie des fichiers déclarés,
-//  avant l'écran de fin. Ici, uniquement la génération de la config --
-//  BepInEx et le plugin sont déjà en place via [Files].
+//  Main step: called after the declared files are copied, before the
+//  finish screen. Only config generation happens here -- BepInEx and the
+//  plugin are already in place via [Files].
 // ---------------------------------------------------------------------
 procedure CurStepChanged(CurStep: TSetupStep);
 var
@@ -318,7 +313,7 @@ begin
 
   Dir := ExpandConstant('{app}');
 
-  WizardForm.StatusLabel.Caption := 'Écriture de la configuration...';
+  WizardForm.StatusLabel.Caption := 'Writing configuration...';
   ForceDirectories(Dir + '\BepInEx\config');
 
   case CmbPanelSize.ItemIndex of
@@ -332,16 +327,16 @@ begin
   ExtractTemporaryFile('config-template.cfg');
   if LoadStringFromFile(ConfigTemplate, ConfigAnsi) then
   begin
-    // LoadStringFromFile ne travaille qu'en AnsiString ; StringChangeEx
-    // n'accepte que du String (Unicode). D'où la conversion explicite --
-    // sans risque ici puisque toutes les valeurs substituées (true/false,
-    // nombres, "F9") sont de l'ASCII pur, seuls les commentaires du
-    // template contiennent des accents qui survivent à l'aller-retour.
+    // LoadStringFromFile only works with AnsiString; StringChangeEx only
+    // accepts String (Unicode). Hence the explicit conversion -- safe
+    // here since every substituted value (true/false, numbers, "F9") is
+    // pure ASCII; only the template's comments contain characters that
+    // survive the round-trip.
     ConfigText := String(ConfigAnsi);
 
-    // False (4e argument) : pas d'expansion de variables d'environnement
-    // sur ce chemin -- un dossier contenant un '%' littéral (rare mais
-    // possible) ne doit pas être mésinterprété.
+    // False (4th argument): no environment variable expansion on this
+    // path -- a folder containing a literal '%' (rare but possible)
+    // must not be misinterpreted.
     StringChangeEx(ConfigText, '{{SONGS_FOLDER}}', EdtSongsFolder.Text, False);
     StringChangeEx(ConfigText, '{{TOGGLE_KEY}}', 'F9', True);
     StringChangeEx(ConfigText, '{{BLOCK_INPUT}}', BoolToCfg(ChkBlockInput.Checked), True);
@@ -350,9 +345,8 @@ begin
     StringChangeEx(ConfigText, '{{PANEL_HEIGHT}}', PanelH, True);
     StringChangeEx(ConfigText, '{{SHOW_ALBUM_ART}}', BoolToCfg(ChkAlbumArt.Checked), True);
 
-    // Le plugin refuse d'installer un morceau si ce dossier n'existe pas
-    // encore -- on le crée maintenant plutôt que de laisser échouer le
-    // premier téléchargement.
+    // The plugin refuses to install a song if this folder doesn't exist
+    // yet -- create it now rather than letting the first download fail.
     if EdtSongsFolder.Text <> '' then
       ForceDirectories(EdtSongsFolder.Text);
 
@@ -362,14 +356,14 @@ begin
   end
   else
     MsgBox(
-      'config-template.cfg introuvable à côté de l''installeur -- la '
-        + 'config par défaut de BepInEx sera utilisée à la place '
-        + '(rien de grave, juste moins pratique : à régler à la main).',
+      'config-template.cfg was not found next to the installer -- '
+        + 'BepInEx''s default config will be used instead '
+        + '(nothing serious, just less convenient: adjust it by hand).',
       mbInformation, MB_OK
     );
 end;
 
 [Run]
 Filename: "{app}\Clone Hero.exe"; \
-  Description: "Lancer Clone Hero maintenant (premier démarrage plus long -- BepInEx génère ses fichiers)"; \
+  Description: "Launch Clone Hero now (first startup takes longer -- BepInEx generates its files)"; \
   Flags: postinstall nowait skipifsilent unchecked

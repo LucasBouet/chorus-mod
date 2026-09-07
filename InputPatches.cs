@@ -5,25 +5,25 @@ using UnityEngine;
 namespace ChorusMod;
 
 /// <summary>
-/// Empêche Clone Hero de réagir aux touches pendant la saisie.
+/// Stops Clone Hero from reacting to keys while typing.
 ///
-/// Ce qui a été essayé avant, et pourquoi ça ne suffisait pas :
-///   1. GameObject.SetActive(false) sur "Rewired Input Manager"
-///      -> désinitialise Rewired définitivement. À proscrire.
-///   2. Behaviour.enabled = false sur ses composants
-///      -> même conséquence.
+/// What was tried before, and why it wasn't enough:
+///   1. GameObject.SetActive(false) on "Rewired Input Manager"
+///      -> deinitializes Rewired permanently. Avoid.
+///   2. Behaviour.enabled = false on its components
+///      -> same consequence.
 ///   3. ReInput.controllers.Keyboard.enabled = false
-///      -> s'applique correctement (vérifié par relecture du flag), mais
-///         le Control Remapper s'ouvrait quand même : le jeu lit cette
-///         touche via l'Input legacy d'Unity, pas via Rewired.
+///      -> applies correctly (verified by reading the flag back), but the
+///         Control Remapper would still open: the game reads that key
+///         through Unity's legacy Input, not through Rewired.
 ///
-/// D'où cette approche : préfixe Harmony sur UnityEngine.Input, qui
-/// renvoie "touche non pressée" tant que l'overlay est ouvert. Aucun état
-/// n'est modifié, le patch est retiré proprement à la fermeture du jeu.
+/// Hence this approach: a Harmony prefix on UnityEngine.Input, which
+/// returns "key not pressed" while the overlay is open. No state is
+/// modified, and the patch is removed cleanly when the game closes.
 /// </summary>
 public static class InputPatches
 {
-    /// Activé par ChorusUI pendant que le panneau est ouvert.
+    /// Enabled by ChorusUI while the panel is open.
     public static bool SwallowKeys;
 
     private static Harmony? _harmony;
@@ -38,20 +38,20 @@ public static class InputPatches
             Patch(nameof(Input.GetKey), nameof(GetKeyPrefix));
             Patch(nameof(Input.GetKeyUp), nameof(GetKeyPrefix));
 
-            Plugin.Logger.LogInfo("Patch d'entrée clavier appliqué.");
+            Plugin.Logger.LogInfo("Keyboard input patch applied.");
         }
         catch (Exception e)
         {
             Plugin.Logger.LogWarning(
-                $"Patch d'entrée impossible, les touches iront aussi au jeu : {e}"
+                $"Input patch failed, keystrokes will also reach the game: {e}"
             );
         }
     }
 
     private static void Patch(string unityMethod, string prefixName)
     {
-        // Uniquement la surcharge KeyCode : celle qui prend une string
-        // passe par les axes configurés, pas par les touches physiques.
+        // Only the KeyCode overload: the string-based one goes through
+        // configured axes, not physical keys.
         var target = AccessTools.Method(
             typeof(Input),
             unityMethod,
@@ -60,7 +60,7 @@ public static class InputPatches
 
         if (target == null)
         {
-            Plugin.Logger.LogWarning($"Input.{unityMethod}(KeyCode) introuvable.");
+            Plugin.Logger.LogWarning($"Input.{unityMethod}(KeyCode) not found.");
             return;
         }
 
@@ -68,18 +68,18 @@ public static class InputPatches
         _harmony!.Patch(target, prefix: new HarmonyMethod(prefix));
     }
 
-    /// Renvoie false (= touche non pressée) au jeu tant que l'overlay est
-    /// ouvert. La touche d'ouverture reste lisible, sinon on ne pourrait
-    /// plus refermer le panneau depuis notre propre Update().
+    /// Returns false (= key not pressed) to the game while the overlay is
+    /// open. The toggle key stays readable, otherwise we couldn't close the
+    /// panel from our own Update() anymore.
     private static bool GetKeyPrefix(KeyCode key, ref bool __result)
     {
         if (!SwallowKeys || key == Plugin.ToggleKey.Value)
         {
-            return true; // laisse passer l'appel original
+            return true; // let the original call through
         }
 
         __result = false;
-        return false; // court-circuite l'appel original
+        return false; // short-circuit the original call
     }
 
     public static void Dispose()
@@ -90,7 +90,7 @@ public static class InputPatches
         }
         catch (Exception)
         {
-            // Rien à faire de plus à l'extinction.
+            // Nothing more to do on shutdown.
         }
     }
 }

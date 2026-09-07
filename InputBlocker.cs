@@ -4,18 +4,17 @@ using Rewired;
 namespace ChorusMod;
 
 /// <summary>
-/// Empêche Clone Hero de réagir aux frappes pendant la saisie.
+/// Stops Clone Hero from reacting to keystrokes while typing.
 ///
-/// CE QU'IL NE FAUT PAS FAIRE (testé, cassé) :
-///   - GameObject.SetActive(false) sur "Rewired Input Manager"
-///   - Behaviour.enabled = false sur ses composants
-/// Les deux déclenchent la désinitialisation interne de Rewired
-/// ("Rewired is not initialized" en boucle) et ne sont pas réversibles
-/// sans redémarrer le jeu.
+/// WHAT NOT TO DO (tested, broken):
+///   - GameObject.SetActive(false) on "Rewired Input Manager"
+///   - Behaviour.enabled = false on its components
+/// Both trigger Rewired's internal deinitialization ("Rewired is not
+/// initialized" looping) and aren't reversible without restarting the game.
 ///
-/// CE QUI EST PRÉVU POUR ÇA : couper le seul contrôleur clavier via
-/// ReInput.controllers.Keyboard.enabled. C'est un interrupteur normal de
-/// l'API, réversible, et les manettes/guitares restent actives.
+/// WHAT'S ACTUALLY MEANT FOR THIS: disable just the keyboard controller via
+/// ReInput.controllers.Keyboard.enabled. It's a normal API switch,
+/// reversible, and controllers/guitars stay active.
 /// </summary>
 public static class InputBlocker
 {
@@ -33,7 +32,7 @@ public static class InputBlocker
             if (!ReInput.isReady)
             {
                 Plugin.Logger.LogWarning(
-                    "ReInput.isReady == false : impossible de couper le clavier."
+                    "ReInput.isReady == false: can't disable the keyboard."
                 );
                 return;
             }
@@ -54,20 +53,20 @@ public static class InputBlocker
 
             keyboard.enabled = enabled;
 
-            // On relit la valeur : si elle n'a pas pris, le flag est ignoré
-            // par cette version de Rewired et la piste est morte.
+            // Read the value back: if it didn't stick, this version of
+            // Rewired ignores the flag and this approach is a dead end.
             Plugin.Logger.LogInfo(
-                $"Clavier Rewired : demandé enabled={enabled}, relu={keyboard.enabled}"
+                $"Rewired keyboard: requested enabled={enabled}, read back={keyboard.enabled}"
             );
         }
         catch (Exception e)
         {
-            // Méthode non restaurée par Cpp2IL, ou API différente sur cette
-            // version de Rewired : on abandonne proprement, une seule fois.
+            // Method not restored by Cpp2IL, or a different API on this
+            // version of Rewired: bail out cleanly, just once.
             _unavailable = true;
             Plugin.Logger.LogWarning(
-                "Blocage du clavier indisponible, les touches atteindront "
-                    + $"aussi le jeu pendant la saisie : {e.Message}"
+                "Keyboard blocking unavailable, keystrokes will also reach "
+                    + $"the game while typing: {e.Message}"
             );
         }
     }

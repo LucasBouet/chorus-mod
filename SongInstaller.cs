@@ -9,22 +9,22 @@ namespace ChorusMod;
 
 public static class SongInstaller
 {
-    /// Écrit les octets téléchargés dans le dossier Songs. Détecte
-    /// automatiquement zip vs fichier .sng isolé.
-    /// À appeler depuis un thread de fond (I/O bloquante).
+    /// Writes the downloaded bytes to the Songs folder. Automatically
+    /// detects zip vs. a standalone .sng file.
+    /// Call from a background thread (blocking I/O).
     public static string Install(byte[] data, string songName)
     {
         var root = Plugin.SongsFolder.Value;
         if (string.IsNullOrWhiteSpace(root))
         {
             throw new InvalidOperationException(
-                "Dossier Songs non configuré (voir BepInEx/config/fr.lucas.chorus-mod.cfg)."
+                "Songs folder not configured (see BepInEx/config/fr.lucas.chorus-mod.cfg)."
             );
         }
 
         if (!Directory.Exists(root))
         {
-            throw new DirectoryNotFoundException($"Dossier Songs introuvable : {root}");
+            throw new DirectoryNotFoundException($"Songs folder not found: {root}");
         }
 
         var folderName = Sanitize(songName);
@@ -36,8 +36,8 @@ public static class SongInstaller
         }
         else
         {
-            // Pas un zip : très probablement un .sng seul. On le pose dans
-            // son propre dossier pour que le scanner le voie proprement.
+            // Not a zip: most likely a standalone .sng. Place it in its own
+            // folder so the scanner picks it up properly.
             Directory.CreateDirectory(targetDir);
             File.WriteAllBytes(Path.Combine(targetDir, folderName + ".sng"), data);
         }
@@ -61,16 +61,16 @@ public static class SongInstaller
         {
             if (string.IsNullOrEmpty(entry.Name))
             {
-                continue; // dossier
+                continue; // folder
             }
 
             var destPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
 
-            // Garde-fou zip-slip : on refuse toute entrée qui sortirait du
-            // dossier cible via des ../ dans son chemin.
+            // Zip-slip guard: reject any entry that would escape the target
+            // folder via ../ in its path.
             if (!destPath.StartsWith(fullTarget, StringComparison.OrdinalIgnoreCase))
             {
-                Plugin.Logger.LogWarning($"Entrée zip suspecte ignorée : {entry.FullName}");
+                Plugin.Logger.LogWarning($"Suspicious zip entry ignored: {entry.FullName}");
                 continue;
             }
 
@@ -79,12 +79,11 @@ public static class SongInstaller
         }
     }
 
-    /// Caractères interdits sous Windows. On applique la liste la plus
-    /// stricte sur TOUTES les plateformes, volontairement :
-    /// Path.GetInvalidFileNameChars() ne renvoie que '/' et '\0' sous
-    /// Linux, ce qui produirait des dossiers du type "AC/DC - T.N.T" —
-    /// illisibles si la bibliothèque est ensuite partagée avec une machine
-    /// Windows ou synchronisée.
+    /// Characters forbidden on Windows. Deliberately applied on ALL
+    /// platforms, using the strictest list: Path.GetInvalidFileNameChars()
+    /// only returns '/' and '\0' on Linux, which would produce folders like
+    /// "AC/DC - T.N.T" — unreadable if the library is later shared with or
+    /// synced to a Windows machine.
     private static readonly char[] ForbiddenChars =
     {
         '<', '>', ':', '"', '/', '\\', '|', '?', '*',
@@ -96,49 +95,49 @@ public static class SongInstaller
 
         foreach (var c in name)
         {
-            // Caractères de contrôle inclus (0-31), interdits partout.
+            // Control characters included (0-31), forbidden everywhere.
             builder.Append(
                 c < 32 || Array.IndexOf(ForbiddenChars, c) >= 0 ? '_' : c
             );
         }
 
-        // Windows refuse aussi les points/espaces en fin de nom.
+        // Windows also rejects trailing dots/spaces in names.
         var cleaned = builder.ToString().Trim().TrimEnd('.', ' ');
 
         return cleaned.Length == 0 ? "chart" : cleaned;
     }
 
-    /// Déclenche le rescan de la bibliothèque.
-    /// DOIT être appelé sur le thread principal Unity.
+    /// Triggers a library rescan.
+    /// MUST be called on the Unity main thread.
     public static bool TriggerRescan()
     {
         var songScan = FindSongScan();
         if (songScan == null)
         {
             Plugin.Logger.LogWarning(
-                "SongScan introuvable (ni actif ni inactif) : lance le scan "
-                    + "manuellement depuis le menu du jeu."
+                "SongScan not found (neither active nor inactive): trigger "
+                    + "the scan manually from the game menu."
             );
             return false;
         }
 
         if (songScan.isScanning)
         {
-            Plugin.Logger.LogInfo("Un scan est déjà en cours.");
+            Plugin.Logger.LogInfo("A scan is already in progress.");
             return false;
         }
 
-        // false = scan incrémental. Si les nouveaux morceaux n'apparaissent
-        // pas, passe FullScan à true dans le .cfg.
+        // false = incremental scan. If new songs don't show up, set
+        // FullScan to true in the .cfg.
         var full = Plugin.FullScan.Value;
-        Plugin.Logger.LogInfo($"Lancement du rescan (fullScan={full})…");
+        Plugin.Logger.LogInfo($"Starting rescan (fullScan={full})…");
         songScan.Method_Public_Coroutine_Boolean_0(full);
         return true;
     }
 
-    /// Object.FindObjectOfType ignore les GameObjects désactivés, or
-    /// SongScan vit sur l'overlay de scan qui est caché la plupart du
-    /// temps. Resources.FindObjectsOfTypeAll, lui, les voit aussi.
+    /// Object.FindObjectOfType ignores disabled GameObjects, and SongScan
+    /// lives on the scan overlay which is hidden most of the time.
+    /// Resources.FindObjectsOfTypeAll, on the other hand, sees those too.
     private static SongScan? FindSongScan()
     {
         try
@@ -146,16 +145,16 @@ public static class SongInstaller
             var all = Resources.FindObjectsOfTypeAll<SongScan>();
             if (all != null && all.Length > 0)
             {
-                Plugin.Logger.LogInfo($"SongScan trouvé ({all.Length} instance(s)).");
+                Plugin.Logger.LogInfo($"SongScan found ({all.Length} instance(s)).");
                 return all[0];
             }
         }
         catch (Exception e)
         {
-            Plugin.Logger.LogWarning($"FindObjectsOfTypeAll indisponible : {e.Message}");
+            Plugin.Logger.LogWarning($"FindObjectsOfTypeAll unavailable: {e.Message}");
         }
 
-        // Repli sur la recherche classique (objets actifs uniquement).
+        // Fall back to the classic lookup (active objects only).
         return Object.FindObjectOfType<SongScan>();
     }
 }

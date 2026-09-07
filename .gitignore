@@ -3,7 +3,7 @@ obj/
 *.user
 ChorusMod.user.props
 
-# Installer build artifacts (téléchargés / compilés, pas du code source)
+# Installer build artifacts (downloaded / compiled, not source code)
 installer/bepinex/
 installer/Output/
 installer/*.dll

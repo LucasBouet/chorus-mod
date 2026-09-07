@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace ChorusMod;
 
-/// Une chart telle que renvoyée par l'API et affichée dans l'overlay.
+/// A chart as returned by the API and displayed in the overlay.
 public class SongResult
 {
-    public string Name = "(sans titre)";
-    public string Artist = "Artiste inconnu";
+    public string Name = "(untitled)";
+    public string Artist = "Unknown Artist";
     public string Album = "";
     public string Genre = "";
     public string Year = "";
@@ -34,8 +34,8 @@ public class SongResult
             : $"{Plugin.FilesBaseUrl.Value.TrimEnd('/')}/{AlbumArtMd5}.jpg";
 }
 
-/// Une page de résultats. L'endpoint avancé renvoie aussi le total,
-/// que l'endpoint simple ne fournit pas (Found reste alors à -1).
+/// A page of results. The advanced endpoint also returns the total,
+/// which the simple endpoint doesn't provide (Found then stays at -1).
 public class SearchPage
 {
     public List<SongResult> Songs = new();
@@ -43,17 +43,17 @@ public class SearchPage
 }
 
 /// <summary>
-/// Client de l'API enchor.us.
+/// Client for the enchor.us API.
 ///
-/// Requête confirmée par capture réseau du site :
+/// Request confirmed by network capture of the site:
 ///   POST https://api.enchor.us/search   (Content-Type: application/json)
 ///   {"search":"…","page":1,"instrument":"guitar","difficulty":null,
 ///    "drumType":null,"drumsReviewed":false,"source":"website"}
 ///
-/// Schéma de réponse confirmé par dump du premier résultat : name, artist,
+/// Response schema confirmed by dumping the first result: name, artist,
 /// album, genre, year, charter, md5, albumArtMd5, song_length (ms),
-/// diff_* (tier, -1 si absent), notesData.instruments[].
-/// Le fichier de chart se télécharge sur files.enchor.us/{md5}.sng.
+/// diff_* (tier, -1 if absent), notesData.instruments[].
+/// The chart file downloads from files.enchor.us/{md5}.sng.
 /// </summary>
 public static class EnchorClient
 {
@@ -74,14 +74,14 @@ public static class EnchorClient
 
     /// <param name="difficulty">null / easy / medium / hard / expert.</param>
     /// <param name="field">
-    /// Vide = recherche libre via /search. Sinon (name, artist, album,
-    /// genre, charter) on bascule sur /search/advanced, qui cible ce seul
-    /// champ et renvoie en prime le nombre total de résultats.
+    /// Empty = free-text search via /search. Otherwise (name, artist, album,
+    /// genre, charter) switches to /search/advanced, which targets that one
+    /// field and returns the total result count as a bonus.
     /// </param>
     /// <param name="flags">
-    /// Drapeaux tri-état de /search/advanced : true = exiger,
-    /// false = exclure, absent/null = indifférent. Vérifié sur l'API :
-    /// hasSoloSections true (308) + false (92) = total sans filtre (400).
+    /// Tri-state flags for /search/advanced: true = require,
+    /// false = exclude, absent/null = don't care. Verified against the API:
+    /// hasSoloSections true (308) + false (92) = total with no filter (400).
     /// </param>
     public static async Task<SearchPage> SearchAsync(
         string query,
@@ -121,13 +121,13 @@ public static class EnchorClient
         if (!response.IsSuccessStatusCode)
         {
             var preview = json.Length > 300 ? json.Substring(0, 300) : json;
-            throw new HttpRequestException($"HTTP {(int)response.StatusCode} : {preview}");
+            throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {preview}");
         }
 
         return ParsePage(json);
     }
 
-    /// "null" ou vide -> littéral JSON null, sinon chaîne échappée.
+    /// "null" or empty -> literal JSON null, otherwise an escaped string.
     private static string Opt(string value) =>
         string.IsNullOrWhiteSpace(value) || value == "null"
             ? "null"
@@ -149,9 +149,9 @@ public static class EnchorClient
         + "\"source\":\"website\""
         + "}";
 
-    /// /search/advanced attend TOUS les champs, même vides. Chaque champ
-    /// texte est un objet {value, exact, exclude} ; on ne remplit que celui
-    /// que l'utilisateur a sélectionné.
+    /// /search/advanced expects ALL fields, even empty ones. Each text
+    /// field is a {value, exact, exclude} object; only the one the user
+    /// selected gets filled in.
     private static string AdvancedBody(
         string query,
         string instrument,
@@ -208,7 +208,7 @@ public static class EnchorClient
 
         using var doc = JsonDocument.Parse(json);
 
-        // "found" = total serveur, présent sur /search/advanced uniquement.
+        // "found" = server-side total, present on /search/advanced only.
         if (doc.RootElement.ValueKind == JsonValueKind.Object)
         {
             page.Found = Int(doc.RootElement, "found", -1);
@@ -219,7 +219,7 @@ public static class EnchorClient
         if (array == null)
         {
             Plugin.Logger.LogWarning(
-                "Aucun tableau de résultats dans la réponse. Extrait : "
+                "No results array in the response. Excerpt: "
                     + (json.Length > 400 ? json.Substring(0, 400) : json)
             );
             return page;
@@ -233,7 +233,7 @@ public static class EnchorClient
                 logged = true;
                 var raw = element.GetRawText();
                 Plugin.Logger.LogInfo(
-                    "Premier résultat brut : "
+                    "First raw result: "
                         + (raw.Length > 1500 ? raw.Substring(0, 1500) + "…" : raw)
                 );
             }
@@ -280,8 +280,8 @@ public static class EnchorClient
     {
         var song = new SongResult
         {
-            Name = Str(e, "name", "title") ?? "(sans titre)",
-            Artist = Str(e, "artist") ?? "Artiste inconnu",
+            Name = Str(e, "name", "title") ?? "(untitled)",
+            Artist = Str(e, "artist") ?? "Unknown Artist",
             Album = Str(e, "album") ?? "",
             Genre = Str(e, "genre") ?? "",
             Year = Str(e, "year") ?? "",
@@ -312,7 +312,7 @@ public static class EnchorClient
         return song;
     }
 
-    /// notesData.instruments : la liste des parties réellement chartées.
+    /// notesData.instruments: the list of parts actually charted.
     private static string[] ReadInstruments(JsonElement e)
     {
         var notes = Child(e, "notesData");
@@ -361,8 +361,8 @@ public static class EnchorClient
         return null;
     }
 
-    /// Recherche INSENSIBLE À LA CASSE : on ne connaît pas la convention
-    /// exacte de l'API (name vs Name), et TryGetProperty est strict.
+    /// CASE-INSENSITIVE lookup: the API's exact naming convention (name vs
+    /// Name) isn't known, and TryGetProperty is strict.
     private static string? Str(JsonElement obj, params string[] names)
     {
         if (obj.ValueKind != JsonValueKind.Object)
@@ -389,7 +389,7 @@ public static class EnchorClient
                 }
                 else if (prop.Value.ValueKind == JsonValueKind.Number)
                 {
-                    // Certains champs (année…) peuvent arriver en nombre.
+                    // Some fields (year…) can arrive as a number.
                     return prop.Value.ToString();
                 }
             }

@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Chemin du jeu : AUCUN chemin n'est codé en dur ici.
-    Résolution, dans l'ordre :
-      1. ChorusMod.user.props (fichier local, ignoré par git)   <- recommandé
-      2. variable d'environnement CLONEHERO_DIR
-      3. -p:CloneHeroDir=... en ligne de commande
-      4. emplacement par défaut de la plateforme (dernier recours)
+    Game path: NO path is hardcoded here.
+    Resolution order:
+      1. ChorusMod.user.props (local file, ignored by git)   <- recommended
+      2. CLONEHERO_DIR environment variable
+      3. -p:CloneHeroDir=... on the command line
+      4. platform-plausible default (last resort)
   -->
   <Import Project="ChorusMod.user.props" Condition="Exists('ChorusMod.user.props')" />
 
@@ -20,17 +20,17 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- 2. Variable d'environnement -->
+    <!-- 2. Environment variable -->
     <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And '$(CLONEHERO_DIR)' != ''">$(CLONEHERO_DIR)</CloneHeroDir>
 
-    <!-- 4. Valeurs par défaut plausibles selon l'OS -->
+    <!-- 4. Platform-plausible defaults -->
     <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Steam\steamapps\common\Clone Hero</CloneHeroDir>
     <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/Steam/steamapps/common/Clone Hero</CloneHeroDir>
     <CloneHeroDir Condition="'$(CloneHeroDir)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/Steam/steamapps/common/Clone Hero</CloneHeroDir>
 
     <!--
-      MSBuild accepte les slashes avant sur toutes les plateformes et les
-      convertit au besoin : on n'écrit donc jamais d'antislash ici.
+      MSBuild accepts forward slashes on every platform and converts them
+      as needed: no backslash is ever written here.
     -->
     <BepInExDir>$(CloneHeroDir)/BepInEx</BepInExDir>
     <InteropDir>$(BepInExDir)/interop</InteropDir>
@@ -38,14 +38,14 @@
   </PropertyGroup>
 
   <!--
-    Message d'erreur explicite plutôt qu'une avalanche de CS0246 quand le
-    chemin est faux : les assemblies d'interop ne sont générées qu'au
-    PREMIER lancement du jeu avec BepInEx installé.
+    Explicit error message instead of a wall of CS0246 errors when the path
+    is wrong: interop assemblies are only generated on the FIRST launch of
+    the game with BepInEx installed.
   -->
-  <Target Name="VerifierCheminJeu" BeforeTargets="BeforeBuild">
+  <Target Name="VerifyGamePath" BeforeTargets="BeforeBuild">
     <Error
       Condition="!Exists('$(InteropDir)')"
-      Text="Dossier d'interop introuvable : $(InteropDir)%0ARenseigne le chemin du jeu via ChorusMod.user.props, la variable CLONEHERO_DIR, ou -p:CloneHeroDir=...%0AVérifie aussi que le jeu a été lancé au moins une fois avec BepInEx : c'est ce lancement qui génère BepInEx/interop." />
+      Text="Interop folder not found: $(InteropDir)%0ASet the game path via ChorusMod.user.props, the CLONEHERO_DIR variable, or -p:CloneHeroDir=...%0AAlso check that the game has been launched at least once with BepInEx: that launch is what generates BepInEx/interop." />
   </Target>
 
   <ItemGroup>
@@ -54,15 +54,15 @@
 
   <ItemGroup>
     <!--
-      Private=false : ces DLLs existent déjà côté jeu. Les copier dans la
-      sortie créerait un doublon de version au chargement.
+      Private=false: these DLLs already exist on the game's side. Copying
+      them into the output would create a duplicate version at load time.
     -->
     <Reference Include="Il2CppInterop.Runtime">
       <HintPath>$(BepInExCoreDir)/Il2CppInterop.Runtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
 
-    <!-- MonoBehaviour hérite in fine de Il2CppSystem.Object -->
+    <!-- MonoBehaviour ultimately inherits from Il2CppSystem.Object -->
     <Reference Include="Il2Cppmscorlib">
       <HintPath>$(InteropDir)/Il2Cppmscorlib.dll</HintPath>
       <Private>false</Private>
@@ -81,7 +81,7 @@
       <HintPath>$(InteropDir)/UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- TextAnchor / FontStyle des GUIStyle -->
+    <!-- TextAnchor / FontStyle for GUIStyle -->
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>$(InteropDir)/UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>false</Private>
@@ -90,7 +90,7 @@
       <HintPath>$(InteropDir)/UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- UnityWebRequestTexture : jaquettes -->
+    <!-- UnityWebRequestTexture: album art -->
     <Reference Include="UnityEngine.UnityWebRequestModule">
       <HintPath>$(InteropDir)/UnityEngine.UnityWebRequestModule.dll</HintPath>
       <Private>false</Private>
@@ -104,7 +104,7 @@
       <HintPath>$(InteropDir)/Rewired_Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- Type SongScan -->
+    <!-- SongScan type -->
     <Reference Include="CloneHero">
       <HintPath>$(InteropDir)/CloneHero.dll</HintPath>
       <Private>false</Private>
