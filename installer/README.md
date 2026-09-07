@@ -1,44 +1,45 @@
-# Installeur Chorus Mod
+# Chorus Mod Installer
 
-Un `Setup.exe` Windows classique, **tout embarqué** : sélection du dossier
-Clone Hero, page d'options (rescan, jaquettes, blocage clavier, taille du
-panneau), installation de BepInEx + du plugin, désinstalleur automatique.
+A classic Windows `Setup.exe`, **fully self-contained**: pick your
+Clone Hero folder, choose options (rescan, album art, keyboard
+blocking, panel size), install BepInEx + the plugin, automatic
+uninstaller.
 
-**Aucune connexion internet requise côté utilisateur** : BepInEx est
-embarqué directement dans le Setup.exe, pas téléchargé à l'installation.
-Zéro risque de lien mort.
+**No internet connection required on the user's side**: BepInEx is
+bundled directly inside the Setup.exe, not downloaded during install.
+Zero risk of dead links.
 
-## Ce dont tu as besoin pour CONSTRUIRE l'installeur (une fois)
+## What you need to BUILD the installer (once)
 
-- Le SDK .NET 6 (pour compiler `ChorusMod.dll`)
-- [Inno Setup 6](https://jrsoftware.org/isinfo.php) (gratuit)
-- BepInEx 6.0.0-be.755 (win-x64), déjà dézippé
+- .NET 6 SDK (to compile `ChorusMod.dll`)
+- [Inno Setup 6](https://jrsoftware.org/isinfo.php) (free)
+- BepInEx 6.0.0-be.755 (win-x64), already unzipped
 
-## Ce dont la PERSONNE QUI INSTALLE a besoin
+## What the PERSON INSTALLING needs
 
-Rien. Ni SDK .NET, ni BepInEx, ni connexion internet, ni connaissance
-technique.
+Nothing. No .NET SDK, no BepInEx, no internet connection, no technical
+knowledge.
 
 ---
 
-## Construire l'installeur
+## Building the installer
 
-### 1. Compile le plugin comme d'habitude
+### 1. Build the plugin as usual
 
-Depuis la racine du dépôt :
+From the repo root:
 
 ```bash
 dotnet build -c Release
 ```
 
-### 2. Rassemble les trois éléments à côté du script installeur
+### 2. Gather the three pieces next to the installer script
 
 ```
 installer\
   ChorusModSetup.iss
   config-template.cfg
-  ChorusMod.dll          <- copiée depuis ..\bin\Release\net6.0\
-  bepinex\                <- BepInEx dézippé (voir ci-dessous)
+  ChorusMod.dll          <- copied from ..\bin\Release\net6.0\
+  bepinex\                <- unzipped BepInEx (see below)
     winhttp.dll
     doorstop_config.ini
     .doorstop_version
@@ -47,66 +48,66 @@ installer\
     dotnet\...
 ```
 
-Pour le dossier `bepinex\` : télécharge
-`BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip` depuis
-<https://builds.bepinex.dev/projects/bepinex_be> et dézippe-le tel quel
-dans `installer\bepinex\`.
+For the `bepinex\` folder: download
+`BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip` from
+<https://builds.bepinex.dev/projects/bepinex_be> and unzip it as-is
+into `installer\bepinex\`.
 
-> `ChorusMod.dll`, `bepinex\` et `Output\` ne sont pas suivis par git
-> (voir `.gitignore`) : ce sont des artefacts de build, pas du code
-> source. Chacun les régénère localement.
+> `ChorusMod.dll`, `bepinex\`, and `Output\` aren't tracked by git (see
+> `.gitignore`): they're build artifacts, not source code. Everyone
+> regenerates them locally.
 
-> Ce dossier contient le runtime .NET embarqué par BepInEx (dossier
-> `dotnet\`, ~67 Mo) — c'est normal et volontaire, c'est ce qui permet à
-> l'installeur final de ne rien avoir à télécharger.
+> This folder contains the .NET runtime bundled by BepInEx (the
+> `dotnet\` folder, ~67 MB) — that's expected and intentional, it's what
+> lets the final installer avoid downloading anything.
 
-### 3. Compile l'installeur
+### 3. Build the installer
 
-Ouvre `ChorusModSetup.iss` dans l'IDE Inno Setup, puis **Build → Compile**
-(`Ctrl+F9`). Le résultat sort dans `Output\ChorusMod-Setup.exe`
-(attends-toi à quelque chose autour de 25-35 Mo, le runtime .NET embarqué
-compresse bien).
+Open `ChorusModSetup.iss` in the Inno Setup IDE, then **Build → Compile**
+(`Ctrl+F9`). The result comes out at `Output\ChorusMod-Setup.exe`
+(expect somewhere around 25-35 MB, the bundled .NET runtime compresses
+well).
 
-C'est ce fichier, et lui seul, que tu distribues ou gardes pour une
-réinstallation sur un nouveau PC.
+This file, and only this file, is what you distribute or keep around
+for reinstalling on a new PC.
 
 ---
 
-## Utilisation (côté personne qui installe)
+## Usage (for the person installing)
 
-1. Double-clic sur `ChorusMod-Setup.exe`
-2. Choisir le dossier Clone Hero (pré-rempli si détecté automatiquement,
-   sinon Parcourir — celui qui contient `Clone Hero.exe`)
-3. Cocher les options voulues
-4. Suivant → Installer (rapide, tout est déjà dans le Setup.exe)
-5. Optionnel : lancer le jeu directement depuis la dernière page
+1. Double-click `ChorusMod-Setup.exe`
+2. Choose the Clone Hero folder (pre-filled if auto-detected, otherwise
+   Browse — the one containing `Clone Hero.exe`)
+3. Check the options you want
+4. Next → Install (fast, everything is already inside the Setup.exe)
+5. Optional: launch the game directly from the last page
 
-Premier lancement du jeu plus long que d'habitude (BepInEx génère ses
-fichiers d'interop). Ensuite, **F9** en jeu ouvre Chorus Mod.
+First game launch takes longer than usual (BepInEx generates its
+interop files). After that, **F9** in-game opens Chorus Mod.
 
-## Désinstallation
+## Uninstalling
 
-Panneau de configuration Windows → *Applications* → *Chorus Mod* →
-Désinstaller. Les fichiers de BepInEx et du plugin sont suivis nativement
-par Inno (déclarés en `[Files]`) donc retirés automatiquement ; le fichier
-de config généré à l'installation (`fr.lucas.chorus-mod.cfg`, dont le
-contenu dépend des choix faits) est retiré via une entrée
-`[UninstallDelete]` dédiée puisqu'il n'existe pas au moment de la
-compilation. Le dossier `Songs` n'est jamais touché.
+Windows Control Panel → *Apps* → *Chorus Mod* → Uninstall. BepInEx and
+plugin files are tracked natively by Inno (declared in `[Files]`) so
+they're removed automatically; the config file generated at install
+time (`fr.lucas.chorus-mod.cfg`, whose content depends on the choices
+made) is removed via a dedicated `[UninstallDelete]` entry since it
+doesn't exist at compile time. The `Songs` folder is never touched.
 
-## Mettre à jour la version de BepInEx embarquée
+## Updating the bundled BepInEx version
 
-Remplace le contenu de `bepinex\` par la nouvelle version dézippée, ajuste
-`#define BepInExVersion` en haut du `.iss` (purement informatif, affiché
-nulle part sauf dans les commentaires), et recompile. Comme tout est
-embarqué, aucune URL à maintenir à jour.
+Replace the contents of `bepinex\` with the newly unzipped version,
+adjust `#define BepInExVersion` at the top of the `.iss` (purely
+informational, shown nowhere except in comments), and recompile. Since
+everything is bundled, there's no URL to keep up to date.
 
-⚠️ Les builds BepInEx bleeding edge cassent régulièrement la compatibilité
-entre elles (vécu pendant le développement — voir les notes techniques du
-README du plugin). Ne mets pas à jour sans retester le plugin en entier.
+⚠️ Bleeding-edge BepInEx builds regularly break compatibility with each
+other (learned the hard way during development — see the plugin
+README's technical notes). Don't update without fully retesting the
+plugin.
 
-## Limites connues
+## Known limitations
 
-- **Windows uniquement.** Inno Setup ne produit pas d'installeur Linux.
-  Pour Linux, la procédure manuelle du README principal du plugin reste
-  la référence.
+- **Windows only.** Inno Setup doesn't produce a Linux installer. For
+  Linux, the manual procedure in the plugin's main README remains the
+  reference.

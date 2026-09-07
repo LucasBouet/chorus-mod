@@ -1,307 +1,306 @@
 # Chorus Mod
 
-Plugin BepInEx pour Clone Hero : recherche de charts sur enchor.us,
-téléchargement, installation et rescan automatique de la bibliothèque —
-le tout depuis une fenêtre in-game. **Une seule DLL**, pas d'application
-externe, pas de dépendance à copier.
+BepInEx plugin for Clone Hero: search charts on enchor.us, download,
+install, and auto-rescan your library — all from an in-game window.
+**Single DLL**, no external app, no dependency to copy around.
 
-Fonctionne sous **Windows et Linux** (build natif ou Proton). Aucun chemin
-n'est codé en dur : tout passe par la configuration.
+Works on **Windows and Linux** (native build or Proton). No path is
+hardcoded: everything goes through configuration.
 
-> Pour une installation Windows sans ligne de commande, voir l'installeur
-> tout-en-un dans [`installer/`](installer/README.md).
+> For a Windows install with no command line, see the all-in-one
+> installer in [`installer/`](installer/README.md).
 
 ---
 
-## Sommaire
+## Summary
 
-- [Prérequis](#prérequis)
-- [Installation depuis zéro — Linux](#installation-depuis-zéro--linux)
-- [Installation depuis zéro — Windows](#installation-depuis-zéro--windows)
-- [Compiler le plugin](#compiler-le-plugin)
-- [Utilisation](#utilisation)
+- [Requirements](#requirements)
+- [Fresh install — Linux](#fresh-install--linux)
+- [Fresh install — Windows](#fresh-install--windows)
+- [Building the plugin](#building-the-plugin)
+- [Usage](#usage)
 - [Configuration](#configuration)
-- [Dépannage](#dépannage)
-- [Notes techniques : limites IL2CPP de cette build](#notes-techniques--limites-il2cpp-de-cette-build)
+- [Troubleshooting](#troubleshooting)
+- [Technical notes: IL2CPP limitations of this build](#technical-notes-il2cpp-limitations-of-this-build)
 
 ---
 
-## Prérequis
+## Requirements
 
-- Clone Hero **v1.1.0.6142** (IL2CPP, Unity 2022.3.62f2) — d'autres
-  versions peuvent fonctionner, voir les notes techniques
-- BepInEx **6.0.0-be.755**, variante *Unity.IL2CPP*
-- SDK **.NET 6** (uniquement pour compiler)
+- Clone Hero **v1.1.0.6142** (IL2CPP, Unity 2022.3.62f2) — other
+  versions may work, see the technical notes
+- BepInEx **6.0.0-be.755**, *Unity.IL2CPP* variant
+- **.NET 6** SDK (only needed to build)
 
-> La version de BepInEx compte. Les builds « bleeding edge » cassent
-> régulièrement la compatibilité entre elles : `be.785` par exemple ne
-> charge pas les mêmes plugins que `be.755`. Le plugin est épinglé sur
-> `be.755` dans le `.csproj`.
+> The BepInEx version matters. "Bleeding edge" builds regularly break
+> compatibility with each other: `be.785`, for example, doesn't load the
+> same plugins as `be.755`. The plugin is pinned to `be.755` in the
+> `.csproj`.
 
 ---
 
-## Installation depuis zéro — Linux
+## Fresh install — Linux
 
-### 1. Repérer le dossier du jeu
+### 1. Locate the game folder
 
 ```bash
 find ~ -maxdepth 8 -iname "Clone Hero" -type d 2>/dev/null
 ```
 
-Emplacements courants :
+Common locations:
 
-| Contexte | Chemin |
+| Context | Path |
 | --- | --- |
-| Steam natif | `~/.local/share/Steam/steamapps/common/Clone Hero` |
+| Steam native | `~/.local/share/Steam/steamapps/common/Clone Hero` |
 | Steam Flatpak | `~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Clone Hero` |
-| Install manuelle | variable |
+| Manual install | varies |
 
-Note ce chemin, il servira partout ensuite :
+Note this path, it'll be used everywhere below:
 
 ```bash
 export CLONEHERO_DIR="$HOME/.local/share/Steam/steamapps/common/Clone Hero"
 ```
 
-### 2. Identifier la variante du jeu
+### 2. Identify the game variant
 
 ```bash
 ls "$CLONEHERO_DIR"
 ```
 
-- Présence de `Clone Hero.x86_64` → **build Linux natif**
-- Présence de `Clone Hero.exe` → **build Windows sous Proton**
+- `Clone Hero.x86_64` present → **native Linux build**
+- `Clone Hero.exe` present → **Windows build under Proton**
 
-Cette distinction détermine quel BepInEx installer.
+This determines which BepInEx build to install.
 
-### 3a. Build Linux natif → BepInEx Linux
+### 3a. Native Linux build → BepInEx Linux
 
-Télécharge `BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.755+*.zip` depuis
-<https://builds.bepinex.dev/projects/bepinex_be>, puis :
+Download `BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.755+*.zip` from
+<https://builds.bepinex.dev/projects/bepinex_be>, then:
 
 ```bash
 cd "$CLONEHERO_DIR"
-unzip ~/Téléchargements/BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.755*.zip
+unzip ~/Downloads/BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.755*.zip
 chmod +x run_bepinex.sh
 ```
 
-Lancement depuis Steam : *Propriétés* → *Options de lancement* :
+Launching from Steam: *Properties* → *Launch Options*:
 
 ```
-"/chemin/complet/vers/Clone Hero/run_bepinex.sh" %command%
+"/full/path/to/Clone Hero/run_bepinex.sh" %command%
 ```
 
-Ou hors Steam :
+Or outside Steam:
 
 ```bash
 ./run_bepinex.sh
 ```
 
-> ⚠️ Le script `run_bepinex.sh` a des soucis connus avec le wrapper de
-> lancement de Steam. Si BepInEx ne se charge pas (voir §5), lance le jeu
-> directement en ligne de commande pour vérifier, puis rabats-toi sur la
-> méthode Proton ci-dessous.
+> ⚠️ The `run_bepinex.sh` script has known issues with Steam's launch
+> wrapper. If BepInEx doesn't load (see §5), launch the game directly
+> from the command line to check, then fall back to the Proton method
+> below.
 
-### 3b. Build Windows sous Proton → BepInEx Windows
+### 3b. Windows build under Proton → BepInEx Windows
 
-Télécharge `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip`, puis :
+Download `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip`, then:
 
 ```bash
 cd "$CLONEHERO_DIR"
-unzip ~/Téléchargements/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755*.zip
+unzip ~/Downloads/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755*.zip
 ```
 
-Options de lancement Steam :
+Steam launch options:
 
 ```
 WINEDLLOVERRIDES="winhttp=n,b" %command%
 ```
 
-C'est la méthode la plus fiable : elle reproduit exactement
-l'environnement Windows, donc les mêmes méthodes IL2CPP disponibles.
+This is the most reliable method: it reproduces the exact Windows
+environment, so the same IL2CPP methods are available.
 
-### 4. Premier lancement (obligatoire)
+### 4. First launch (required)
 
-Lance le jeu **une fois** et laisse-le arriver au menu. Ce démarrage est
-plus long que d'habitude : BepInEx génère les *interop assemblies* à
-partir du binaire du jeu.
+Launch the game **once** and let it reach the main menu. This startup
+takes longer than usual: BepInEx generates the *interop assemblies*
+from the game binary.
 
-### 5. Vérifier que BepInEx est bien chargé
+### 5. Verify BepInEx loaded correctly
 
 ```bash
 grep -m3 "BepInEx\|Chainloader" "$CLONEHERO_DIR/BepInEx/LogOutput.log"
 ls "$CLONEHERO_DIR/BepInEx/interop" | head
 ```
 
-Tu dois voir la version de BepInEx dans le log, et une centaine de DLLs
-dans `interop/` (dont `CloneHero.dll`). Sans ça, inutile d'aller plus
-loin : le plugin ne se chargera pas et ne compilera même pas.
+You should see the BepInEx version in the log, and about a hundred DLLs
+in `interop/` (including `CloneHero.dll`). Without that, there's no
+point going further: the plugin won't load, and it won't even build.
 
-### 6. Installer le plugin
+### 6. Install the plugin
 
 ```bash
 mkdir -p "$CLONEHERO_DIR/BepInEx/plugins/chorus"
 cp ChorusMod.dll "$CLONEHERO_DIR/BepInEx/plugins/chorus/"
 ```
 
-Relance le jeu, puis vérifie :
+Relaunch the game, then check:
 
 ```bash
 grep "Chorus Mod" "$CLONEHERO_DIR/BepInEx/LogOutput.log"
 ```
 
-Attendu : `Chorus Mod chargé. Dossier Songs : '...'` puis
-`Appuie sur F9 en jeu pour ouvrir Chorus Mod.`
+Expected: `Chorus Mod loaded. Songs folder: '...'` then
+`Press F9 in-game to open Chorus Mod.`
 
-### 7. Vérifier le dossier Songs
+### 7. Verify the Songs folder
 
-La détection automatique couvre les emplacements usuels (à côté du jeu,
-`~/Documents/Clone Hero/Songs`, `~/.local/share/Clone Hero/Songs`, et les
-préfixes Proton). Si le log affiche un chemin vide ou faux, corrige-le :
+Auto-detection covers the usual locations (next to the game,
+`~/Documents/Clone Hero/Songs`, `~/.local/share/Clone Hero/Songs`, and
+Proton prefixes). If the log shows an empty or wrong path, fix it:
 
 ```bash
 nano "$CLONEHERO_DIR/BepInEx/config/fr.lucas.chorus-mod.cfg"
 ```
 
 ```ini
-SongsFolder = /home/toi/Musique/CloneHeroSongs
+SongsFolder = /home/you/Music/CloneHeroSongs
 ```
 
-Le dossier doit être **un de ceux que Clone Hero scanne** (voir les
-réglages du jeu), sinon les charts s'installeront sans jamais apparaître.
+The folder must be **one that Clone Hero actually scans** (check the
+game's settings), otherwise charts will install but never show up.
 
 ---
 
-## Installation depuis zéro — Windows
+## Fresh install — Windows
 
-1. Repère le dossier du jeu (Steam → clic droit → *Gérer* → *Parcourir les
-   fichiers locaux*).
-2. Télécharge `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip` sur
-   <https://builds.bepinex.dev/projects/bepinex_be> et extrais **tout le
-   contenu** à la racine du dossier du jeu (à côté de `Clone Hero.exe`).
-3. Si le zip vient d'un navigateur, débloque les fichiers, sinon Windows
-   peut refuser de les charger silencieusement :
+1. Locate the game folder (Steam → right-click → *Manage* → *Browse
+   Local Files*).
+2. Download `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip` from
+   <https://builds.bepinex.dev/projects/bepinex_be> and extract **the
+   whole content** to the game folder's root (next to `Clone Hero.exe`).
+3. If the zip came from a browser, unblock the files, otherwise Windows
+   may silently refuse to load them:
    ```powershell
    Get-ChildItem -Path "C:\Games\Clone Hero" -Recurse -Filter *.dll | Unblock-File
    ```
-4. Lance le jeu une fois (démarrage long : génération des interop).
-5. Copie `ChorusMod.dll` dans `<jeu>\BepInEx\plugins\chorus\`.
-6. Relance et cherche `Chorus Mod` dans `BepInEx\LogOutput.log`.
+4. Launch the game once (long startup: interop generation).
+5. Copy `ChorusMod.dll` to `<game>\BepInEx\plugins\chorus\`.
+6. Relaunch and look for `Chorus Mod` in `BepInEx\LogOutput.log`.
 
 ---
 
-## Compiler le plugin
+## Building the plugin
 
-Le chemin du jeu n'est **jamais** codé en dur. Trois façons de le fournir,
-par ordre de priorité :
+The game path is **never** hardcoded. Three ways to provide it, in
+priority order:
 
-**1. Fichier local (recommandé)**
+**1. Local file (recommended)**
 
 ```bash
 cp ChorusMod.user.props.example ChorusMod.user.props
-# puis édite le chemin dedans
+# then edit the path inside
 ```
 
-Ce fichier est ignoré par git : chacun garde son chemin sans conflit.
+This file is ignored by git: everyone keeps their own path without
+conflicts.
 
-**2. Variable d'environnement**
+**2. Environment variable**
 
 ```bash
 export CLONEHERO_DIR="$HOME/.local/share/Steam/steamapps/common/Clone Hero"
 dotnet build -c Release
 ```
 
-**3. Ligne de commande**
+**3. Command line**
 
 ```bash
-dotnet build -c Release -p:CloneHeroDir="/chemin/vers/Clone Hero"
+dotnet build -c Release -p:CloneHeroDir="/path/to/Clone Hero"
 ```
 
-Puis :
+Then:
 
 ```bash
 dotnet restore
 dotnet build -c Release
 ```
 
-La DLL sort dans `bin/Release/net6.0/ChorusMod.dll`. Aucune dépendance à
-copier avec : toutes les références sont en `Private=false` (elles
-existent déjà côté jeu) et `System.Text.Json` fait partie du runtime .NET 6
-qu'embarque BepInEx.
+The DLL comes out at `bin/Release/net6.0/ChorusMod.dll`. No dependency
+to copy alongside it: every reference is `Private=false` (they already
+exist on the game's side) and `System.Text.Json` is part of the .NET 6
+runtime that BepInEx bundles.
 
-Si le chemin est faux, la compilation s'arrête sur un message explicite
-plutôt que sur une avalanche d'erreurs de types manquants.
+If the path is wrong, the build stops with an explicit message instead
+of a wall of missing-type errors.
 
 ---
 
-## Utilisation
+## Usage
 
-| Action | Commande |
+| Action | Command |
 | --- | --- |
-| Ouvrir / fermer | **F9** (configurable) ou **Échap** |
-| Lancer la recherche | **Entrée** ou bouton *Chercher* |
-| Faire défiler | molette |
-| Coller depuis le presse-papier | bouton *Coller* |
+| Open / close | **F9** (configurable) or **Esc** |
+| Run search | **Enter** or the *Search* button |
+| Scroll | mouse wheel |
+| Paste from clipboard | *Paste* button |
 
-**Filtres.** Instrument, difficulté, et champ ciblé (titre, artiste,
-album, genre, charter). Les *Filtres avancés* dépliables ajoutent 11
-critères en tri-état : un clic pour **exiger**, deux pour **exclure**,
-trois pour revenir à indifférent.
+**Filters.** Instrument, difficulty, and target field (title, artist,
+album, genre, charter). The collapsible *Advanced filters* add 11
+tri-state criteria: one click to **require**, two to **exclude**,
+three to go back to don't-care.
 
-Sans texte de recherche mais avec des filtres avancés actifs, tu peux
-parcourir toutes les charts possédant telle caractéristique.
+With no search text but active advanced filters, you can browse every
+chart matching a given criterion.
 
-**Installation.** Le bouton *Installer* télécharge, extrait dans le
-dossier Songs, puis déclenche le rescan du jeu. Les charts hébergées sur
-des dossiers Google Drive ne peuvent pas être récupérées automatiquement :
-le bouton devient *Ouvrir* et passe la main au navigateur.
+**Install.** The *Install* button downloads, extracts to the Songs
+folder, then triggers the game's rescan. Charts hosted on Google Drive
+folders can't be fetched automatically: the button becomes *Open* and
+hands off to your browser.
 
-Le rescan nécessite que l'objet `SongScan` existe dans la scène : reste au
-menu principal ou à l'écran de sélection pendant les téléchargements.
+The rescan requires the `SongScan` object to exist in the scene: stay
+on the main menu or the song-selection screen during downloads.
 
 ---
 
 ## Configuration
 
-`<jeu>/BepInEx/config/fr.lucas.chorus-mod.cfg`, généré au premier
-lancement.
+`<game>/BepInEx/config/fr.lucas.chorus-mod.cfg`, generated on first
+launch.
 
 ### `[General]`
 
-| Clé | Défaut | Rôle |
+| Key | Default | Role |
 | --- | --- | --- |
-| `SongsFolder` | auto-détecté | Dossier d'installation. **Doit être scanné par Clone Hero.** |
-| `ToggleKey` | `F9` | Touche d'ouverture. |
-| `BlockGameInput` | `true` | Empêche les touches tapées de déclencher les raccourcis du jeu. |
-| `FullScan` | `false` | Passe à `true` si les nouveaux morceaux n'apparaissent pas après installation. |
-| `PanelWidth` | `1180` | Largeur de l'overlay en pixels. |
-| `PanelHeight` | `780` | Hauteur de l'overlay. |
-| `ShowAlbumArt` | `true` | Jaquettes. À couper si l'affichage d'images ne fonctionne pas sur ta build. |
-| `PanelOpacityLayers` | `8` | Opacité du fond quand la teinte n'est pas disponible. |
+| `SongsFolder` | auto-detected | Install folder. **Must be scanned by Clone Hero.** |
+| `ToggleKey` | `F9` | Key to open the overlay. |
+| `BlockGameInput` | `true` | Prevents typed keys from triggering game shortcuts. |
+| `FullScan` | `false` | Set to `true` if new songs don't show up after install. |
+| `PanelWidth` | `1180` | Overlay width in pixels. |
+| `PanelHeight` | `780` | Overlay height. |
+| `ShowAlbumArt` | `true` | Album art. Turn off if image display doesn't work on your build. |
+| `PanelOpacityLayers` | `8` | Background opacity when tinting isn't available. |
 
 ### `[API]`
 
-| Clé | Défaut | Rôle |
+| Key | Default | Role |
 | --- | --- | --- |
-| `BaseUrl` | `https://api.enchor.us` | Hôte de l'API. |
-| `SearchEndpoint` | `/search` | Recherche libre (POST). |
-| `FilesBaseUrl` | `https://files.enchor.us` | Hôte des fichiers (charts et jaquettes). |
-| `Instrument` | `guitar` | Instrument sélectionné à l'ouverture. |
-| `LogRawResponse` | `true` | Dump le JSON du premier résultat. **À passer à `false`** une fois que tout marche. |
+| `BaseUrl` | `https://api.enchor.us` | API host. |
+| `SearchEndpoint` | `/search` | Free-text search (POST). |
+| `FilesBaseUrl` | `https://files.enchor.us` | File host (charts and album art). |
+| `Instrument` | `guitar` | Instrument selected on open. |
+| `LogRawResponse` | `true` | Dumps the first result's JSON. **Set to `false`** once everything works. |
 
-> Ces réglages permettent de suivre un changement d'URL de l'API sans
-> recompiler.
+> These settings let you follow an API URL change without recompiling.
 
 ---
 
-## Dépannage
+## Troubleshooting
 
-**Le plugin ne se charge pas.** Cherche `Chorus Mod` dans
-`BepInEx/LogOutput.log`. Absent → BepInEx ne voit pas la DLL : vérifie le
-chemin `BepInEx/plugins/chorus/`, la version de BepInEx (`be.755`), et
-sous Windows le déblocage des fichiers.
+**The plugin doesn't load.** Look for `Chorus Mod` in
+`BepInEx/LogOutput.log`. Missing → BepInEx doesn't see the DLL: check
+the `BepInEx/plugins/chorus/` path, the BepInEx version (`be.755`), and
+on Windows, whether the files are unblocked.
 
-**Pour voir plus de détails**, passe le log en verbeux dans
-`BepInEx/config/BepInEx.cfg`, **dans les deux sections** :
+**For more detail**, set verbose logging in `BepInEx/config/BepInEx.cfg`,
+**in both sections**:
 
 ```ini
 [Logging.Console]
@@ -311,89 +310,87 @@ LogLevels = All
 LogLevels = All
 ```
 
-**Recherche en échec (HTTP 405).** Le `.cfg` contient une ancienne URL.
-BepInEx ne remplace jamais une valeur existante quand les défauts
-changent : corrige `BaseUrl` / `SearchEndpoint` à la main, ou supprime le
-fichier pour le régénérer.
+**Search fails (HTTP 405).** The `.cfg` has a stale URL. BepInEx never
+overwrites an existing value when defaults change: fix `BaseUrl` /
+`SearchEndpoint` by hand, or delete the file to regenerate it.
 
-**Les morceaux n'apparaissent pas après installation.** Passe
-`FullScan = true`. Si ça persiste, vérifie que `SongsFolder` fait bien
-partie des dossiers scannés dans les réglages du jeu.
+**Songs don't show up after install.** Set `FullScan = true`. If it
+persists, check that `SongsFolder` is actually one of the folders
+scanned in the game's settings.
 
-**Rewired est cassé (« Rewired is not initialized » en boucle).** Redémarre
-le jeu. Ce symptôme venait d'anciennes versions qui désactivaient l'Input
-Manager ; l'approche actuelle n'y touche plus.
+**Rewired is broken (looping "Rewired is not initialized").** Restart
+the game. This used to come from older versions that disabled the
+Input Manager; the current approach doesn't touch it anymore.
 
 ---
 
-## Notes techniques : limites IL2CPP de cette build
+## Technical notes: IL2CPP limitations of this build
 
-Le stripping managé d'Unity a retiré du binaire un certain nombre de
-méthodes que le jeu n'utilise pas. Elles existent dans les DLLs de
-référence mais lèvent `NotSupportedException: Method unstripping failed`
-à l'appel — impossible à contourner par une injection, le code natif
-n'existe tout simplement pas.
+Unity's managed stripping removed a number of methods from the binary
+that the game doesn't use. They exist in the reference DLLs but throw
+`NotSupportedException: Method unstripping failed` when called — there's
+no working around it via injection, the native code simply isn't there.
 
-Cartographie établie par tests sur `v1.1.0.6142` :
+Mapped by testing on `v1.1.0.6142`:
 
-| Fonctionne | Ne fonctionne pas |
+| Works | Doesn't work |
 | --- | --- |
 | `GUI.Box`, `GUI.Label`, `GUI.Button` | `GUI.TextField`, `GUILayout.TextField` |
 | `GUI.BeginGroup` / `EndGroup` | `GUILayout.Window` (`DoWindow`) |
-| `GUI.color` (teinte) | `GUILayout.Space` |
+| `GUI.color` (tint) | `GUILayout.Space` |
 | `Texture2D.whiteTexture` | `GUI.DrawTexture`, `Graphics.DrawTexture` |
-| fond de `GUIStyle` (`normal.background`) | `GUI.Label`/`Box` prenant une `Texture` |
-| `UnityWebRequestTexture` | ctor `Texture2D(int,int)` |
-| `Object.FindObjectOfType` | ctor `RectOffset(int,int,int,int)` |
+| `GUIStyle` background (`normal.background`) | `GUI.Label`/`Box` taking a `Texture` |
+| `UnityWebRequestTexture` | `Texture2D(int,int)` ctor |
+| `Object.FindObjectOfType` | `RectOffset(int,int,int,int)` ctor |
 | | `Resources.FindObjectsOfTypeAll` |
 
-Conséquences dans le code :
+Consequences in the code:
 
-- **Champ de saisie maison** : les frappes sont lues via `Event.current`
-  et le texte rendu dans un `GUI.Label` (voir `ChorusUI.HandleTextInput`).
-- **Pas de fenêtre déplaçable** : panneau à position fixe, centré.
-- **Défilement manuel** : offset piloté à la molette + `GUI.BeginGroup`
-  pour le clipping.
-- **Images via fond de `GUIStyle`** : la texture est assignée en
-  `normal.background` puis dessinée par une `GUI.Box` vide. C'est le seul
-  chemin de rendu d'image survivant (voir `Theme.DrawImage`, qui teste six
-  méthodes et retient celle qui passe).
-- **Aucune création de texture** : les jaquettes viennent de
-  `UnityWebRequestTexture`, qui les fabrique côté natif.
+- **Custom text input**: keystrokes are read via `Event.current` and
+  the text rendered in a `GUI.Label` (see `ChorusUI.HandleTextInput`).
+- **No draggable window**: fixed, centered panel.
+- **Manual scrolling**: offset driven by the mouse wheel + `GUI.BeginGroup`
+  for clipping.
+- **Images via `GUIStyle` background**: the texture is assigned to
+  `normal.background` then drawn by an empty `GUI.Box`. It's the only
+  surviving image-rendering path (see `Theme.DrawImage`, which tests
+  six methods and keeps whichever one works).
+- **No texture creation**: album art comes from `UnityWebRequestTexture`,
+  which builds it natively.
 
-`Theme.DrawImage` journalise le mode retenu au premier affichage. Sur une
-autre version du jeu, ces disponibilités peuvent différer : le code teste
-et se replie automatiquement, donc au pire une fonctionnalité cosmétique
-disparaît avec un avertissement dans le log, sans planter.
+`Theme.DrawImage` logs the chosen mode on first display. On a different
+game version, availability may vary: the code tests and falls back
+automatically, so at worst a cosmetic feature disappears with a warning
+in the log, without crashing.
 
-### Blocage des entrées
+### Input blocking
 
-Trois approches ont été essayées avant celle en place :
+Three approaches were tried before the current one:
 
-1. `SetActive(false)` sur *Rewired Input Manager* → désinitialise Rewired
-   **définitivement**. À proscrire.
-2. `enabled = false` sur ses composants → même conséquence.
-3. `ReInput.controllers.Keyboard.enabled = false` → s'applique bien
-   (vérifié par relecture du flag) mais insuffisant : le jeu lit certaines
-   touches via l'`Input` legacy d'Unity.
+1. `SetActive(false)` on the *Rewired Input Manager* → deinitializes
+   Rewired **permanently**. Avoid.
+2. `enabled = false` on its components → same consequence.
+3. `ReInput.controllers.Keyboard.enabled = false` → applies correctly
+   (verified by reading the flag back) but isn't enough: the game reads
+   some keys through Unity's legacy `Input`.
 
-La solution retenue est un **préfixe Harmony** sur `Input.GetKey*`, qui
-renvoie « touche non pressée » tant que l'overlay est ouvert. Aucun état
-n'est modifié, et le patch se retire proprement.
+The chosen solution is a **Harmony prefix** on `Input.GetKey*`, which
+returns "key not pressed" while the overlay is open. No state is
+modified, and the patch removes itself cleanly.
 
-### API enchor.us
+### enchor.us API
 
-Endpoints vérifiés par capture réseau puis testés :
+Endpoints verified by network capture then tested:
 
-- `POST /search` — corps
+- `POST /search` — body
   `{search, page, instrument, difficulty, drumType, drumsReviewed, source}`.
-  `difficulty` accepte `null`, `easy`, `medium`, `hard`, `expert`.
-- `POST /search/advanced` — champs texte sous forme
+  `difficulty` accepts `null`, `easy`, `medium`, `hard`, `expert`.
+- `POST /search/advanced` — text fields as
   `{value, exact, exclude}` (`name`, `artist`, `album`, `genre`, `year`,
-  `charter`), bornes `min*`/`max*`, et 11 booléens tri-état
-  (`null` = indifférent, `true` = exiger, `false` = exclure).
-  Réponse : `{found, out_of, page, data, search_time_ms}` — `found` donne
-  le total, absent de l'endpoint simple.
-  **Ne gère pas de recherche libre** : une clé `search` y est ignorée.
-- Fichiers : `https://files.enchor.us/{md5}.sng` pour les charts,
-  `{albumArtMd5}.jpg` pour les jaquettes.
+  `charter`), `min*`/`max*` bounds, and 11 tri-state booleans
+  (`null` = don't care, `true` = require, `false` = exclude).
+  Response: `{found, out_of, page, data, search_time_ms}` — `found`
+  gives the total, absent from the simple endpoint.
+  **Doesn't support free-text search**: a `search` key is ignored there.
+- Files: `https://files.enchor.us/{md5}.sng` for charts,
+  `{albumArtMd5}.jpg` for album art.
