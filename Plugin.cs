@@ -152,6 +152,8 @@ public class Plugin : BasePlugin
             InputPatches.Apply("fr.lucas.chorus-mod");
         }
 
+        InstalledSongs.EnsureLoaded();
+
         // A custom MonoBehaviour must be registered with the IL2CPP runtime
         // before it can be attached to a GameObject.
         ClassInjector.RegisterTypeInIl2Cpp<ChorusUI>();
@@ -196,7 +198,7 @@ public class Plugin : BasePlugin
         );
 
         // 2. "Windows-style" location, which also exists under Proton and
-        //    that .NET maps to ~/Documents on Linux.
+        // that .NET maps to ~/Documents on Linux.
         if (!string.IsNullOrEmpty(documents))
         {
             yield return Path.Combine(documents, "Clone Hero", "Songs");
@@ -215,15 +217,15 @@ public class Plugin : BasePlugin
         yield return Path.Combine(home, "Musique", "Clone Hero", "Songs");
 
         // 4. Proton prefix: when the Windows build runs under Steam Play,
-        //    "My Documents" lives inside the game's Wine prefix. We walk up
-        //    from the game folder instead of guessing the AppID.
+        // "My Documents" lives inside the game's Wine prefix. We walk up
+        // from the game folder instead of guessing the AppID.
         foreach (var path in ProtonPrefixCandidates())
         {
             yield return path;
         }
     }
 
-    /// .../steamapps/common/Clone Hero  ->  .../steamapps/compatdata/*/pfx/
+    /// .../steamapps/common/Clone Hero -> .../steamapps/compatdata/*/pfx/
     /// drive_c/users/steamuser/Documents/Clone Hero/Songs
     private static IEnumerable<string> ProtonPrefixCandidates()
     {

@@ -12,10 +12,10 @@ namespace ChorusMod;
 // "NotSupportedException: Method unstripping failed" when called.
 // Observed through testing:
 //   Works: GUI.Box, GUI.Label, GUI.Button,
-//        GUI.BeginGroup/EndGroup, Texture2D.whiteTexture
+//          GUI.BeginGroup/EndGroup, Texture2D.whiteTexture
 //   Broken: GUI.TextField, GUI.DrawTexture, GUILayout.Window, GUILayout.Space,
-//        Resources.FindObjectsOfTypeAll,
-//        Texture2D(int,int) and RectOffset(int,int,int,int) constructors
+//           Resources.FindObjectsOfTypeAll,
+//           Texture2D(int,int) and RectOffset(int,int,int,int) constructors
 //
 // Conclusion: this UI ONLY uses GUI.* with absolute rectangles.
 // No GUILayout at all — list scrolling is done by hand
@@ -120,6 +120,7 @@ public class ChorusUI : MonoBehaviour
 
     /// null = don't care, true = require, false = exclude.
     private readonly Dictionary<string, bool?> _flags = new();
+
     private int _page = 1;
     private string _status = "Type a search then press Enter.";
     private bool _busy;
@@ -511,6 +512,15 @@ public class ChorusUI : MonoBehaviour
             Theme.Fill(rect, Theme.RowEven, 1);
         }
 
+        // Already-downloaded indicator: a thin accent bar on the left edge.
+        // Independent of whether GUI.color tinting works on this build
+        // (Fill already has its own fallback cascade for that).
+        var installed = InstalledSongs.IsInstalled(song.DownloadUrl);
+        if (installed)
+        {
+            Theme.Fill(new Rect(rect.x, rect.y, 4f, rect.height), Theme.Accent, 2);
+        }
+
         var textX = rect.x + 8f;
 
         // Album art (if available on this build).
@@ -548,11 +558,11 @@ public class ChorusUI : MonoBehaviour
         var sub = song.Artist;
         if (!string.IsNullOrEmpty(song.Year))
         {
-            sub += $"  ·  {song.Year}";
+            sub += $" · {song.Year}";
         }
         if (!string.IsNullOrEmpty(song.Charter))
         {
-            sub += $"  ·  chart by {song.Charter}";
+            sub += $" · chart by {song.Charter}";
         }
         GUI.Label(
             new Rect(textX, rect.y + (RowH * 0.5f) + 2f, textW, 18f),
@@ -577,7 +587,7 @@ public class ChorusUI : MonoBehaviour
         var meta = song.LengthText;
         if (song.GuitarTier >= 0)
         {
-            meta += $"   tier {song.GuitarTier}";
+            meta += $" tier {song.GuitarTier}";
         }
         GUI.Label(
             new Rect(rect.xMax - 190f, rect.y + (RowH - 18f) * 0.5f, 90f, 18f),
@@ -597,7 +607,7 @@ public class ChorusUI : MonoBehaviour
         else
         {
             GUI.enabled = !_busy;
-            if (GUI.Button(btnRect, "Install"))
+            if (GUI.Button(btnRect, installed ? "Reinstall" : "Install"))
             {
                 StartDownload(song);
             }
@@ -822,6 +832,7 @@ public class ChorusUI : MonoBehaviour
                 _mainThread.Enqueue(() =>
                 {
                     var scanning = SongInstaller.TriggerRescan();
+                    InstalledSongs.MarkInstalled(song.DownloadUrl);
                     _status = scanning
                         ? $"\"{song.Name}\" installed — rescanning…"
                         : $"\"{song.Name}\" installed (manual rescan needed).";
