@@ -133,6 +133,7 @@ public class ChorusUI : MonoBehaviour
 
     private bool _cursorWasVisible;
     private CursorLockMode _previousLockState;
+    private bool _syncing;
 
     private void Update()
     {
@@ -305,6 +306,13 @@ public class ChorusUI : MonoBehaviour
 
         // --- Header ---
         GUI.Label(new Rect(x, y, 300f, 22f), "CHORUS MOD", S(Theme.Header));
+        if (GUI.Button(new Rect(panel.xMax - Pad - 170f, y, 80f, 22f), _syncing ? "…" : "Sync"))
+        {
+            if (!_syncing)
+            {
+                StartSync();
+            }
+        }
         if (GUI.Button(new Rect(panel.xMax - Pad - 80f, y, 80f, 22f), "Close"))
         {
             Toggle();
@@ -846,6 +854,54 @@ public class ChorusUI : MonoBehaviour
                 {
                     _status = $"Failed: {e.Message}";
                     _busy = false;
+                });
+            }
+        });
+    }
+
+    /// Backfills InstalledSongs from Clone Hero's own JSON export (see
+    /// LibrarySync). Runs off the main thread since it makes one API
+    /// search per local song; MarkInstalled is always re-dispatched
+    /// through _mainThread since it mutates the set DrawRow reads every
+    /// frame.
+    private void StartSync()
+    {
+        _syncing = true;
+        _status = "Synchronizing…";
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await LibrarySync.RunAsync(
+                    progress =>
+                    {
+                        _mainThread.Enqueue(() =>
+                        {
+                            _status =
+                                $"Synchronizing… {progress.Done}/{progress.Total} "
+                                    + $"({progress.Matched} matched)";
+                        });
+                    },
+                    downloadUrl =>
+                    {
+                        _mainThread.Enqueue(() => InstalledSongs.MarkInstalled(downloadUrl));
+                    }
+                );
+
+                _mainThread.Enqueue(() =>
+                {
+                    _status = "Sync complete.";
+                    _syncing = false;
+                });
+            }
+            catch (Exception e)
+            {
+                Plugin.Logger.LogError($"Sync failed: {e}");
+                _mainThread.Enqueue(() =>
+                {
+                    _status = $"Sync failed: {e.Message}";
+                    _syncing = false;
                 });
             }
         });

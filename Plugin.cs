@@ -28,6 +28,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<float> PanelWidth = null!;
     public static ConfigEntry<float> PanelHeight = null!;
     public static ConfigEntry<bool> ShowAlbumArt = null!;
+    public static ConfigEntry<string> LibraryExportPath = null!;
 
     public override void Load()
     {
@@ -86,6 +87,17 @@ public class Plugin : BasePlugin
             true,
             "Shows album art in the list. Set to false if loading images "
                 + "causes issues or slowdowns."
+        );
+
+        LibraryExportPath = Config.Bind(
+            "General",
+            "LibraryExportPath",
+            "",
+            "Path to the JSON song list exported from Clone Hero's own "
+                + "Songs menu. Used by the in-game 'Sync' button to mark "
+                + "existing local charts as already downloaded (best-effort "
+                + "match on name/artist/charter/length -- that export has "
+                + "no exact hash)."
         );
 
         PanelOpacityLayers = Config.Bind(
