@@ -175,6 +175,8 @@ public class Plugin : BasePlugin
         host.hideFlags = HideFlags.HideAndDontSave;
         host.AddComponent<ChorusUI>();
 
+        Toast.Initialize();
+
         Logger.LogInfo($"Press {ToggleKey.Value} in-game to open Chorus Mod.");
     }
 

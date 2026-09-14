@@ -109,6 +109,24 @@
       <HintPath>$(InteropDir)/CloneHero.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
+    <!-- Toast notifications: our own Canvas/Image/TMP text -->
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(InteropDir)/UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(InteropDir)/UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(InteropDir)/Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreTextEngineModule">
+      <HintPath>$(InteropDir)/UnityEngine.TextCoreTextEngineModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>
