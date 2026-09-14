@@ -850,6 +850,11 @@ public class ChorusUI : MonoBehaviour
                         ? $"\"{song.Name}\" installed — rescanning…"
                         : $"\"{song.Name}\" installed (manual rescan needed).";
                     _busy = false;
+
+                    Toast.Show(
+                        "Chart installed",
+                        $"{song.Artist} — {song.Name}"
+                    );
                 });
             }
             catch (Exception e)
@@ -884,6 +889,11 @@ public class ChorusUI : MonoBehaviour
                     InstalledSongs.MarkInstalledLocallyBatch(toIndex);
                     _status = $"Sync complete: {progress.Indexed}/{progress.Total} songs indexed.";
                     _syncing = false;
+
+                    Toast.Show(
+                        "Sync complete",
+                        $"{progress.Indexed}/{progress.Total} songs indexed"
+                    );
                 });
             }
             catch (Exception e)
