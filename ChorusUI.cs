@@ -522,8 +522,13 @@ public class ChorusUI : MonoBehaviour
 
         // Already-downloaded indicator: a thin accent bar on the left edge.
         // Independent of whether GUI.color tinting works on this build
-        // (Fill already has its own fallback cascade for that).
-        var installed = InstalledSongs.IsInstalled(song.DownloadUrl);
+        // (Fill already has its own fallback cascade for that). Checks
+        // both the hash-verified index (from actual downloads through the
+        // mod) and the local Artist+Name index (from Sync, see
+        // InstalledSongs remarks on the trade-off between the two).
+        var installed =
+            InstalledSongs.IsInstalled(song.DownloadUrl)
+            || InstalledSongs.IsInstalledLocally(song.Artist, song.Name);
         if (installed)
         {
             Theme.Fill(new Rect(rect.x, rect.y, 4f, rect.height), Theme.Accent, 2);
@@ -859,39 +864,25 @@ public class ChorusUI : MonoBehaviour
         });
     }
 
-    /// Backfills InstalledSongs from Clone Hero's own JSON export (see
-    /// LibrarySync). Runs off the main thread since it makes one API
-    /// search per local song; MarkInstalled is always re-dispatched
-    /// through _mainThread since it mutates the set DrawRow reads every
-    /// frame.
+    /// Backfills the local Artist+Name index from Clone Hero's own JSON
+    /// export (see LibrarySync). Purely local file I/O now -- no network
+    /// call, no rate limit to worry about -- so this finishes in well
+    /// under a second even on a huge library. Still off the main thread
+    /// since it's file I/O and there's no reason to risk a hitch.
     private void StartSync()
     {
         _syncing = true;
         _status = "Synchronizing…";
 
-        Task.Run(async () =>
+        Task.Run(() =>
         {
             try
             {
-                await LibrarySync.RunAsync(
-                    progress =>
-                    {
-                        _mainThread.Enqueue(() =>
-                        {
-                            _status =
-                                $"Synchronizing… {progress.Done}/{progress.Total} "
-                                    + $"({progress.Matched} matched)";
-                        });
-                    },
-                    downloadUrl =>
-                    {
-                        _mainThread.Enqueue(() => InstalledSongs.MarkInstalled(downloadUrl));
-                    }
-                );
-
+                var (progress, toIndex) = LibrarySync.Run();
                 _mainThread.Enqueue(() =>
                 {
-                    _status = "Sync complete.";
+                    InstalledSongs.MarkInstalledLocallyBatch(toIndex);
+                    _status = $"Sync complete: {progress.Indexed}/{progress.Total} songs indexed.";
                     _syncing = false;
                 });
             }

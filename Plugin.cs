@@ -95,9 +95,9 @@ public class Plugin : BasePlugin
             "",
             "Path to the JSON song list exported from Clone Hero's own "
                 + "Songs menu. Used by the in-game 'Sync' button to mark "
-                + "existing local charts as already downloaded (best-effort "
-                + "match on name/artist/charter/length -- that export has "
-                + "no exact hash)."
+                + "existing local charts as already downloaded, purely by "
+                + "matching artist and title -- entirely offline, no API "
+                + "call involved."
         );
 
         PanelOpacityLayers = Config.Bind(
