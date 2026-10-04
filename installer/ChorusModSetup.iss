@@ -21,6 +21,9 @@
 ;    - Asks for the Clone Hero folder (with validation)
 ;    - Offers options (full rescan, album art, keyboard blocking,
 ;      panel size)
+;    - Trophies page: Rythmania trophy notifications on/off, Discord
+;      name (pre-filled from Rythmania Tracker's player.json), ntfy
+;      topic, and which toasts to show (trophy / record / level up)
 ;    - Installs BepInEx 6.0.0-be.755 + ChorusMod.dll into the game
 ;    - Generates the pre-filled .cfg based on the choices made
 ;    - Automatic uninstaller ([Files] entries tracked natively by
@@ -28,9 +31,15 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.2"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
+; ntfy topic the trophy site publishes to, pre-filled on the Trophies
+; page. Deliberately empty in the public repo and releases: anyone who
+; knows the topic can read every player's events and publish fake ones,
+; so players get it from the trophy site and type it in. Only fill this
+; for a private build.
+#define NtfyTopic ""
 
 [Setup]
 AppId={{5B6C9F2E-CHORUS-MOD-CLONE-HERO-0001}}
@@ -42,6 +51,14 @@ AppPublisher={#MyAppPublisher}
 ; fallback if auto-detection (GuessGameDir, in [Code]) finds nothing --
 ; deliberately neutral, no Steam assumption.
 DefaultDirName=C:\Clone Hero
+; Several Clone Hero copies can live side by side (Steam, portable,
+; test copies...): never pre-fill the folder of the previous install,
+; always show the folder page, and use the browsed folder AS-IS --
+; Inno's default appends DefaultDirName's last part ("Clone Hero") to
+; whatever is picked, which is wrong for an existing game folder.
+UsePreviousAppDir=no
+DisableDirPage=no
+AppendDefaultDirName=no
 DisableProgramGroupPage=yes
 ; EXISTING game folder, not a new folder to create.
 DirExistsWarning=no
@@ -92,6 +109,10 @@ var
   EdtSongsFolder: TEdit;
   BtnBrowseSongs: TButton;
 
+  TrophiesPage: TWizardPage;
+  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels: TCheckBox;
+  EdtUsername, EdtTopic: TEdit;
+
 // ---------------------------------------------------------------------
 //  Auto-detects a few plausible locations, just to pre-fill the field --
 //  the person stays in control to correct it. Covers Steam AND a
@@ -120,6 +141,163 @@ begin
       Exit;
     end;
   end;
+end;
+
+// ---------------------------------------------------------------------
+//  Rythmania Tracker keeps the player's Discord name -- the name the
+//  trophy site knows them by -- in %APPDATA%\Rythmania Tracker\player.json:
+//    {"discordId": "...", "discordName": "..."}
+//  Minimal hand parsing (no JSON in Pascal Script): first string value
+//  after the "discordName" key. Empty if the file or key is missing.
+// ---------------------------------------------------------------------
+function ReadTrackerDiscordName(): String;
+var
+  Raw: AnsiString;
+  Json, Rest: String;
+  P: Integer;
+begin
+  Result := '';
+  if not LoadStringFromFile(
+    ExpandConstant('{userappdata}\Rythmania Tracker\player.json'), Raw
+  ) then
+    Exit;
+
+  // The file is UTF-8: decode so accented names survive.
+  Json := UTF8Decode(Raw);
+  P := Pos('"discordName"', Json);
+  if P = 0 then
+    Exit;
+
+  Rest := Copy(Json, P + Length('"discordName"'), Length(Json));
+  P := Pos(':', Rest);
+  if P = 0 then
+    Exit;
+  Rest := Copy(Rest, P + 1, Length(Rest));
+  P := Pos('"', Rest);
+  if P = 0 then
+    Exit;
+  Rest := Copy(Rest, P + 1, Length(Rest));
+  P := Pos('"', Rest);
+  if P = 0 then
+    Exit;
+
+  Result := Trim(Copy(Rest, 1, P - 1));
+end;
+
+procedure UpdateTrophyControls(Sender: TObject);
+var
+  Enabled: Boolean;
+begin
+  Enabled := ChkTrophies.Checked;
+  EdtTopic.Enabled := Enabled;
+  ChkToastTrophies.Enabled := Enabled;
+  ChkToastRecords.Enabled := Enabled;
+  ChkToastLevels.Enabled := Enabled;
+end;
+
+function NewHint(Page: TWizardPage; Top, Left: Integer; Text: String): TNewStaticText;
+begin
+  Result := TNewStaticText.Create(Page);
+  Result.Parent := Page.Surface;
+  Result.Top := Top;
+  Result.Left := Left;
+  Result.Width := Page.SurfaceWidth - Left;
+  Result.Caption := Text;
+  Result.Font.Color := clGrayText;
+end;
+
+function NewCheck(Page: TWizardPage; Top, Left: Integer; Text: String): TCheckBox;
+begin
+  Result := TCheckBox.Create(Page);
+  Result.Parent := Page.Surface;
+  Result.Top := Top;
+  Result.Left := Left;
+  Result.Width := Page.SurfaceWidth - Left;
+  Result.Caption := Text;
+  Result.Checked := True;
+end;
+
+// ---------------------------------------------------------------------
+//  Trophies page: everything the Rythmania trophy integration needs.
+// ---------------------------------------------------------------------
+procedure CreateTrophiesPage(AfterID: Integer);
+var
+  Y: Integer;
+begin
+  TrophiesPage := CreateCustomPage(
+    AfterID,
+    'Trophies & notifications',
+    'In-game toasts and main-menu player card from the Rythmania trophy '
+      + 'site (changeable later in game via the SETTINGS button).'
+  );
+
+  Y := 0;
+  ChkTrophies := NewCheck(TrophiesPage, Y, 0, 'Enable trophy notifications');
+  ChkTrophies.OnClick := @UpdateTrophyControls;
+  Y := Y + 28;
+
+  with TNewStaticText.Create(TrophiesPage) do
+  begin
+    Parent := TrophiesPage.Surface;
+    Top := Y;
+    Caption := 'Discord name (as known by the trophy site):';
+  end;
+  Y := Y + 20;
+
+  EdtUsername := TEdit.Create(TrophiesPage);
+  EdtUsername.Parent := TrophiesPage.Surface;
+  EdtUsername.Top := Y;
+  EdtUsername.Width := 260;
+  EdtUsername.Text := ReadTrackerDiscordName();
+  Y := Y + 24;
+
+  if EdtUsername.Text <> '' then
+    NewHint(TrophiesPage, Y, 0, 'Detected from Rythmania Tracker.')
+  else
+    NewHint(
+      TrophiesPage, Y, 0,
+      'Rythmania Tracker not found. Leave empty to detect it at each game '
+        + 'launch once the tracker is installed.'
+    );
+  Y := Y + 28;
+
+  with TNewStaticText.Create(TrophiesPage) do
+  begin
+    Parent := TrophiesPage.Surface;
+    Top := Y;
+    Caption := 'Notification channel (ntfy topic):';
+  end;
+  Y := Y + 20;
+
+  EdtTopic := TEdit.Create(TrophiesPage);
+  EdtTopic.Parent := TrophiesPage.Surface;
+  EdtTopic.Top := Y;
+  EdtTopic.Width := 260;
+  EdtTopic.Text := '{#NtfyTopic}';
+  Y := Y + 24;
+
+  NewHint(
+    TrophiesPage, Y, 0,
+    'Given by the trophy site. Leave empty to set it later in the .cfg '
+      + '(NtfyTopic): no notifications until then.'
+  );
+  Y := Y + 28;
+
+  with TNewStaticText.Create(TrophiesPage) do
+  begin
+    Parent := TrophiesPage.Surface;
+    Top := Y;
+    Caption := 'Show a notification when:';
+  end;
+  Y := Y + 20;
+
+  ChkToastTrophies := NewCheck(TrophiesPage, Y, 12, 'You unlock a trophy');
+  Y := Y + 22;
+  ChkToastRecords := NewCheck(TrophiesPage, Y, 12, 'One of your records is beaten');
+  Y := Y + 22;
+  ChkToastLevels := NewCheck(TrophiesPage, Y, 12, 'You level up');
+
+  UpdateTrophyControls(nil);
 end;
 
 procedure BrowseSongsClicked(Sender: TObject);
@@ -249,6 +427,8 @@ begin
   CmbPanelSize.Items.Add('Large (1400x900)');
   CmbPanelSize.Items.Add('Compact (900x600)');
   CmbPanelSize.ItemIndex := 0;
+
+  CreateTrophiesPage(OptionsPage.ID);
 end;
 
 // ---------------------------------------------------------------------
@@ -296,6 +476,17 @@ begin
   if B then Result := 'true' else Result := 'false';
 end;
 
+// The .cfg can hold non-ASCII text (a Discord name with accents), so it's
+// written as UTF-8 -- BepInEx reads it as such.
+function SaveUTF8(const FileName, Text: String): Boolean;
+var
+  Lines: TArrayOfString;
+begin
+  SetArrayLength(Lines, 1);
+  Lines[0] := Text;
+  Result := SaveStringsToUTF8File(FileName, Lines, False);
+end;
+
 // ---------------------------------------------------------------------
 //  Main step: called after the declared files are copied, before the
 //  finish screen. Only config generation happens here -- BepInEx and the
@@ -307,6 +498,7 @@ var
   ConfigAnsi: AnsiString;
   ConfigText: String;
   PanelW, PanelH: String;
+  Topic: String;
 begin
   if CurStep <> ssPostInstall then
     Exit;
@@ -329,9 +521,9 @@ begin
   begin
     // LoadStringFromFile only works with AnsiString; StringChangeEx only
     // accepts String (Unicode). Hence the explicit conversion -- safe
-    // here since every substituted value (true/false, numbers, "F9") is
-    // pure ASCII; only the template's comments contain characters that
-    // survive the round-trip.
+    // here since the template itself is pure ASCII. Substituted values
+    // (folder, Discord name) can be anything: they're inserted into the
+    // Unicode string and the result is saved as UTF-8 below.
     ConfigText := String(ConfigAnsi);
 
     // False (4th argument): no environment variable expansion on this
@@ -345,14 +537,22 @@ begin
     StringChangeEx(ConfigText, '{{PANEL_HEIGHT}}', PanelH, True);
     StringChangeEx(ConfigText, '{{SHOW_ALBUM_ART}}', BoolToCfg(ChkAlbumArt.Checked), True);
 
+    // Unchecked = empty topic = the plugin's trophy listener stays off.
+    Topic := '';
+    if ChkTrophies.Checked then
+      Topic := Trim(EdtTopic.Text);
+    StringChangeEx(ConfigText, '{{NTFY_TOPIC}}', Topic, False);
+    StringChangeEx(ConfigText, '{{USERNAME}}', Trim(EdtUsername.Text), False);
+    StringChangeEx(ConfigText, '{{TOAST_TROPHIES}}', BoolToCfg(ChkToastTrophies.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_RECORDS}}', BoolToCfg(ChkToastRecords.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_LEVELS}}', BoolToCfg(ChkToastLevels.Checked), True);
+
     // The plugin refuses to install a song if this folder doesn't exist
     // yet -- create it now rather than letting the first download fail.
     if EdtSongsFolder.Text <> '' then
       ForceDirectories(EdtSongsFolder.Text);
 
-    SaveStringToFile(
-      Dir + '\BepInEx\config\fr.lucas.chorus-mod.cfg', AnsiString(ConfigText), False
-    );
+    SaveUTF8(Dir + '\BepInEx\config\fr.lucas.chorus-mod.cfg', ConfigText);
   end
   else
     MsgBox(
