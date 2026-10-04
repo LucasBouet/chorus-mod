@@ -316,6 +316,12 @@ off and preview it. Choices are saved in `[Notifications]`:
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
 
+The same window has a Gameplay section, saved in `[Gameplay]`:
+
+| Key | Default | Role |
+| --- | --- | --- |
+| `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter during songs with more than one player (local or online). |
+
 ---
 
 ## Troubleshooting

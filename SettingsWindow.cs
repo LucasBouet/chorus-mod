@@ -10,9 +10,9 @@ namespace ChorusMod;
 /// under the main-menu player card, closed with its Close button or
 /// Escape. Game keyboard input is blocked while it's open, like ChorusUI.
 ///
-/// For now: one Notifications section, a row per trophy-site toast with
-/// an ON/OFF switch (a ConfigEntry, saved to the .cfg immediately) and a
-/// Preview button that fires a sample toast.
+/// Sections of rows, each an ON/OFF switch on a ConfigEntry (saved to the
+/// .cfg immediately): Notifications (one per trophy-site toast, with a
+/// Preview button firing a sample) and Gameplay (in-song HUD tweaks).
 /// </summary>
 public class SettingsWindow : MonoBehaviour
 {
@@ -24,7 +24,7 @@ public class SettingsWindow : MonoBehaviour
         public string Title;
         public string Description;
         public Color Accent;
-        public Action Preview;
+        public Action? Preview; // null = no Preview button
     }
 
     private const float Pad = 16f;
@@ -37,6 +37,7 @@ public class SettingsWindow : MonoBehaviour
     private static SettingsWindow? _instance;
 
     private Row[] _rows = Array.Empty<Row>();
+    private Row[] _gameplayRows = Array.Empty<Row>();
     private bool _open;
     private bool _cursorWasVisible;
     private CursorLockMode _previousLockState;
@@ -107,6 +108,17 @@ public class SettingsWindow : MonoBehaviour
                     TrophyListener.LevelAccent,
                     "Level up"
                 ),
+            },
+        };
+
+        _gameplayRows = new[]
+        {
+            new Row
+            {
+                Entry = Plugin.HideSoloCounterInMultiplayer,
+                Title = "Hide solo counter in multiplayer",
+                Description = "Hides the solo percentage during songs with more than one player (local or online).",
+                Accent = Toast.DefaultAccent,
             },
         };
     }
@@ -226,6 +238,19 @@ public class SettingsWindow : MonoBehaviour
             y += RowH + 4f;
         }
 
+        // --- Gameplay ---
+        y += 20f;
+        GUI.Label(new Rect(x, y, w, 20f), "GAMEPLAY", S(Theme.Title));
+        y += 20f;
+        GUI.Label(new Rect(x, y, w, 18f), "Changes to the in-song display.", S(Theme.Sub));
+        y += 28f;
+
+        for (var i = 0; i < _gameplayRows.Length; i++)
+        {
+            DrawRow(new Rect(x, y, w, RowH), _gameplayRows[i], i);
+            y += RowH + 4f;
+        }
+
         GUI.Label(
             new Rect(x, panel.yMax - 28f, w, 18f),
             "Esc or Close to go back. Changes are saved immediately.",
@@ -249,7 +274,8 @@ public class SettingsWindow : MonoBehaviour
 
         var buttonY = row.y + (row.height - ButtonH) * 0.5f;
 
-        if (GUI.Button(new Rect(row.xMax - 220f, buttonY, 100f, ButtonH), "Preview"))
+        if (data.Preview != null
+            && GUI.Button(new Rect(row.xMax - 220f, buttonY, 100f, ButtonH), "Preview"))
         {
             data.Preview();
         }

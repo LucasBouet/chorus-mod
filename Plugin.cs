@@ -37,6 +37,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<bool> ToastTrophies = null!;
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
+    public static ConfigEntry<bool> HideSoloCounterInMultiplayer = null!;
 
     public override void Load()
     {
@@ -213,6 +214,15 @@ public class Plugin : BasePlugin
             "Toast when you level up."
         );
 
+        HideSoloCounterInMultiplayer = Config.Bind(
+            "Gameplay",
+            "HideSoloCounterInMultiplayer",
+            false,
+            "Hides the solo percentage counter during songs with more than "
+                + "one player (local or online). Also toggled in-game from "
+                + "the SETTINGS button under the main-menu player card."
+        );
+
         if (string.IsNullOrWhiteSpace(TrophyUsername.Value))
         {
             var detected = DetectTrackerUsername();
@@ -253,6 +263,7 @@ public class Plugin : BasePlugin
         Toast.Initialize();
         MainMenuOverlay.Initialize();
         SettingsWindow.Initialize();
+        GameplayTweaks.Initialize();
 
         TrophyListener.Start();
 
