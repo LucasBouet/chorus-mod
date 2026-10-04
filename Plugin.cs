@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -10,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.0.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.2.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
@@ -29,6 +30,13 @@ public class Plugin : BasePlugin
     public static ConfigEntry<float> PanelHeight = null!;
     public static ConfigEntry<bool> ShowAlbumArt = null!;
     public static ConfigEntry<string> LibraryExportPath = null!;
+    public static ConfigEntry<string> NtfyServer = null!;
+    public static ConfigEntry<string> NtfyTopic = null!;
+    public static ConfigEntry<string> TrophyUsername = null!;
+    public static ConfigEntry<string> PlayerApiUrl = null!;
+    public static ConfigEntry<bool> ToastTrophies = null!;
+    public static ConfigEntry<bool> ToastRecords = null!;
+    public static ConfigEntry<bool> ToastLevels = null!;
 
     public override void Load()
     {
@@ -149,6 +157,73 @@ public class Plugin : BasePlugin
                 + "works."
         );
 
+        NtfyServer = Config.Bind(
+            "Trophies",
+            "NtfyServer",
+            "https://ntfy.sh",
+            "ntfy server the trophy site publishes to."
+        );
+
+        NtfyTopic = Config.Bind(
+            "Trophies",
+            "NtfyTopic",
+            "",
+            "ntfy topic carrying trophy / record events. Empty = trophy "
+                + "listener disabled. Anyone knowing this name can read and "
+                + "publish to it: don't share it."
+        );
+
+        TrophyUsername = Config.Bind(
+            "Trophies",
+            "Username",
+            "",
+            "Your username on the trophy site: only your own events get a "
+                + "toast (every event is still logged). Filled automatically "
+                + "from the Rythmania Tracker app's player.json when empty. "
+                + "Empty = toast every player's events."
+        );
+
+        PlayerApiUrl = Config.Bind(
+            "Trophies",
+            "PlayerApiUrl",
+            "https://bdregieprod.com/ch_trophy_engine/api/usr.php",
+            "Trophy site endpoint returning a player's profile, called with "
+                + "?discordName=<Username>. Feeds the main-menu player card."
+        );
+
+        ToastTrophies = Config.Bind(
+            "Notifications",
+            "TrophyUnlocked",
+            true,
+            "Toast when you unlock a trophy. Also toggled in-game from the "
+                + "SETTINGS button under the main-menu player card."
+        );
+
+        ToastRecords = Config.Bind(
+            "Notifications",
+            "RecordBeaten",
+            true,
+            "Toast when one of your records is beaten."
+        );
+
+        ToastLevels = Config.Bind(
+            "Notifications",
+            "LevelUp",
+            true,
+            "Toast when you level up."
+        );
+
+        if (string.IsNullOrWhiteSpace(TrophyUsername.Value))
+        {
+            var detected = DetectTrackerUsername();
+            if (!string.IsNullOrEmpty(detected))
+            {
+                // Assigning saves it to the .cfg, where it can be edited.
+                TrophyUsername.Value = detected;
+                Logger.LogInfo($"Trophies: username '{detected}' read from Rythmania Tracker.");
+            }
+        }
+
         Logger.LogInfo($"Chorus Mod loaded. Songs folder: '{SongsFolder.Value}'");
         if (string.IsNullOrWhiteSpace(SongsFolder.Value))
         {
@@ -176,8 +251,44 @@ public class Plugin : BasePlugin
         host.AddComponent<ChorusUI>();
 
         Toast.Initialize();
+        MainMenuOverlay.Initialize();
+        SettingsWindow.Initialize();
+
+        TrophyListener.Start();
 
         Logger.LogInfo($"Press {ToggleKey.Value} in-game to open Chorus Mod.");
+    }
+
+    /// The Rythmania Tracker desktop app stores the player's Discord name
+    /// -- the name the trophy site knows them by -- in
+    /// %APPDATA%\Rythmania Tracker\player.json:
+    /// {"discordId": "...", "discordName": "..."}. Best-effort: any problem
+    /// just means no auto-fill.
+    private static string DetectTrackerUsername()
+    {
+        try
+        {
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Rythmania Tracker",
+                "player.json"
+            );
+            if (!File.Exists(path))
+            {
+                return string.Empty;
+            }
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            return doc.RootElement.TryGetProperty("discordName", out var name)
+                && name.ValueKind == JsonValueKind.String
+                ? name.GetString()?.Trim() ?? string.Empty
+                : string.Empty;
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning($"Trophies: couldn't read Rythmania Tracker's player.json: {e.Message}");
+            return string.Empty;
+        }
     }
 
     /// Best-effort, cross-platform: looks for a plausible Songs folder.

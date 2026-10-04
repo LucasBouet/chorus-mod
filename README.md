@@ -290,6 +290,32 @@ launch.
 
 > These settings let you follow an API URL change without recompiling.
 
+### `[Trophies]`
+
+| Key | Default | Role |
+| --- | --- | --- |
+| `NtfyServer` | `https://ntfy.sh` | ntfy server the trophy site publishes to. |
+| `NtfyTopic` | *(empty)* | Topic to listen to over SSE. Empty = disabled. Treat it as a password. |
+| `Username` | auto-detected | Your trophy-site username: only your events get a toast. Read from `discordName` in `%APPDATA%\Rythmania Tracker\player.json` when empty. Empty = toast everyone's events. |
+| `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
+
+Events (`trophy_unlocked`, `record_beaten`) are written to the BepInEx
+log; those whose `username` matches `Username` (case-insensitive) are
+also shown as an in-game toast (top right).
+
+On the main menu only, a player card (top left) shows the `Username`'s
+avatar, trophy count, full combos, best score and latest trophy.
+
+The SETTINGS button under the card (mouse) opens a settings window, in
+the same style as the search window, to turn each kind of toast on or
+off and preview it. Choices are saved in `[Notifications]`:
+
+| Key | Default | Role |
+| --- | --- | --- |
+| `TrophyUnlocked` | `true` | Toast when you unlock a trophy. |
+| `RecordBeaten` | `true` | Toast when one of your records is beaten. |
+| `LevelUp` | `true` | Toast when you level up. |
+
 ---
 
 ## Troubleshooting

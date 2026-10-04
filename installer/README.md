@@ -2,8 +2,8 @@
 
 A classic Windows `Setup.exe`, **fully self-contained**: pick your
 Clone Hero folder, choose options (rescan, album art, keyboard
-blocking, panel size), install BepInEx + the plugin, automatic
-uninstaller.
+blocking, panel size, trophy notifications), install BepInEx + the
+plugin, automatic uninstaller.
 
 **No internet connection required on the user's side**: BepInEx is
 bundled directly inside the Setup.exe, not downloaded during install.
@@ -51,7 +51,11 @@ installer\
 For the `bepinex\` folder: download
 `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.755+*.zip` from
 <https://builds.bepinex.dev/projects/bepinex_be> and unzip it as-is
-into `installer\bepinex\`.
+into `installer\bepinex\`. Alternatively, copy the same files from a
+game folder where be.755 is already installed (`winhttp.dll`,
+`doorstop_config.ini`, `.doorstop_version`, `changelog.txt`,
+`BepInEx\core\`, `dotnet\`) -- never that game's `BepInEx\config`,
+`plugins` or `interop`, which are machine-specific.
 
 > `ChorusMod.dll`, `bepinex\`, and `Output\` aren't tracked by git (see
 > `.gitignore`): they're build artifacts, not source code. Everyone
@@ -79,11 +83,17 @@ for reinstalling on a new PC.
 2. Choose the Clone Hero folder (pre-filled if auto-detected, otherwise
    Browse — the one containing `Clone Hero.exe`)
 3. Check the options you want
-4. Next → Install (fast, everything is already inside the Setup.exe)
-5. Optional: launch the game directly from the last page
+4. **Trophies & notifications** page: keep trophy notifications on,
+   check the Discord name (pre-filled from Rythmania Tracker's
+   `%APPDATA%\Rythmania Tracker\player.json` when it's installed; leave
+   empty to let the mod detect it at each launch), and pick which toasts
+   to show (trophy / record beaten / level up)
+5. Next → Install (fast, everything is already inside the Setup.exe)
+6. Optional: launch the game directly from the last page
 
 First game launch takes longer than usual (BepInEx generates its
-interop files). After that, **F9** in-game opens Chorus Mod.
+interop files). After that, **F9** in-game opens Chorus Mod, and the
+main menu shows the player card with its **SETTINGS** button.
 
 ## Uninstalling
 
@@ -105,6 +115,16 @@ everything is bundled, there's no URL to keep up to date.
 other (learned the hard way during development — see the plugin
 README's technical notes). Don't update without fully retesting the
 plugin.
+
+## Trophy notification topic
+
+The Trophies page asks for the ntfy topic the trophy site publishes
+to. It is **not** shipped in this repo or in public releases: anyone
+who knows it can read every player's events and publish fake ones.
+Players get it from the trophy site and type it in the installer (or
+later as `NtfyTopic` in the `.cfg`). For a private build only, it can
+be pre-filled through `#define NtfyTopic` at the top of
+`ChorusModSetup.iss`.
 
 ## Known limitations
 
