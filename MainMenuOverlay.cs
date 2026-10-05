@@ -78,6 +78,7 @@ public class MainMenuOverlay : MonoBehaviour
 
     private readonly AlbumArtCache _avatars = new();
     private readonly SettingsButton _settingsButton = new();
+    private readonly QuitButton _quitButton = new();
     private string _avatarUrl = "";
     private bool _avatarApplied;
 
@@ -146,6 +147,7 @@ public class MainMenuOverlay : MonoBehaviour
         UpdateAvatar(visible);
         Animate(visible, dt);
         _settingsButton.Tick(visible && _shown >= 1f);
+        _quitButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
     }
 
     private void MaybeFetch(string username)
@@ -470,6 +472,7 @@ public class MainMenuOverlay : MonoBehaviour
 
             BuildLevel(panel, font);
             _settingsButton.Build(_root, font);
+            _quitButton.Build(canvasObject.transform, font);
 
             Plugin.Logger.LogInfo("Player card: UI built.");
         }
