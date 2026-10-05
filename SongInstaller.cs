@@ -34,6 +34,13 @@ public static class SongInstaller
         {
             ExtractZip(data, targetDir);
         }
+        else if (Plugin.DownloadFormat.Value == "zip" && SngPackage.IsSng(data))
+        {
+            // What the site's "zip" download does in the browser: unpack
+            // the .sng into the classic folder. Nothing to delete after,
+            // everything happens in memory.
+            SngPackage.Extract(data, targetDir);
+        }
         else
         {
             // Not a zip: most likely a standalone .sng. Place it in its own
@@ -48,6 +55,8 @@ public static class SongInstaller
     private static bool IsZip(byte[] data) =>
         data.Length >= 2 && data[0] == 'P' && data[1] == 'K';
 
+    /// Unzipped straight from memory: the zip itself never touches the
+    /// disk, so there's nothing to delete afterwards.
     private static void ExtractZip(byte[] data, string targetDir)
     {
         Directory.CreateDirectory(targetDir);
@@ -56,6 +65,7 @@ public static class SongInstaller
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
         var fullTarget = Path.GetFullPath(targetDir);
+        var wrapper = SingleTopFolder(archive);
 
         foreach (var entry in archive.Entries)
         {
@@ -64,7 +74,10 @@ public static class SongInstaller
                 continue; // folder
             }
 
-            var destPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
+            // Files inside a lone wrapper folder go straight into
+            // targetDir instead of one level deeper.
+            var relative = wrapper != null ? entry.FullName.Substring(wrapper.Length) : entry.FullName;
+            var destPath = Path.GetFullPath(Path.Combine(targetDir, relative));
 
             // Zip-slip guard: reject any entry that would escape the target
             // folder via ../ in its path.
@@ -77,6 +90,34 @@ public static class SongInstaller
             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
             entry.ExtractToFile(destPath, overwrite: true);
         }
+    }
+
+    /// "Artist - Song (Charter)/" when every entry sits under that one
+    /// folder (what enchor's zips look like), otherwise null.
+    private static string? SingleTopFolder(ZipArchive archive)
+    {
+        string? top = null;
+        foreach (var entry in archive.Entries)
+        {
+            var name = entry.FullName.Replace('\\', '/');
+            var slash = name.IndexOf('/');
+            if (slash <= 0)
+            {
+                return null; // a file at the root
+            }
+
+            var folder = name.Substring(0, slash + 1);
+            if (top == null)
+            {
+                top = folder;
+            }
+            else if (!string.Equals(top, folder, StringComparison.Ordinal))
+            {
+                return null;
+            }
+        }
+
+        return top;
     }
 
     /// Characters forbidden on Windows. Deliberately applied on ALL

@@ -92,7 +92,7 @@ public class SettingsWindow : MonoBehaviour
     private const float Gap = 6f;
 
     private const float MinPanelW = 900f;
-    private const float MinPanelH = 580f;
+    private const float MinPanelH = 660f;
 
     private static SettingsWindow? _instance;
 
@@ -142,7 +142,7 @@ public class SettingsWindow : MonoBehaviour
         {
             new Page
             {
-                Title = "Notifications & gameplay",
+                Title = "Notifications",
                 Sections = new[]
                 {
                     new Section
@@ -151,6 +151,13 @@ public class SettingsWindow : MonoBehaviour
                         Description = "Choose which toasts pop up in game. Every event is still written to the BepInEx log.",
                         Settings = NotificationSettings(),
                     },
+                },
+            },
+            new Page
+            {
+                Title = "Gameplay",
+                Sections = new[]
+                {
                     new Section
                     {
                         Title = "GAMEPLAY",
@@ -287,6 +294,47 @@ public class SettingsWindow : MonoBehaviour
                 6f,
                 TrophyListener.ChallengeAccent,
                 "Duel challenge"
+            ),
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.ToastDuelResults,
+            Title = "Duel result",
+            Description = "When a duel you took part in is decided: victory or defeat.",
+            Accent = TrophyListener.DuelWonAccent,
+            Preview = () =>
+            {
+                Toast.ShowRankUp(
+                    "Duel vs MrPlopy",
+                    "Victory !",
+                    TrophyListener.DuelResultMessage("Through the Fire and Flames", "274,521", "268,000"),
+                    6f,
+                    TrophyListener.DuelWonAccent,
+                    "Duel won"
+                );
+                Toast.Show(
+                    "Defeat",
+                    "Detox beat you · " + TrophyListener.DuelResultMessage("Through the Fire and Flames", "268,000", "274,521"),
+                    6f,
+                    TrophyListener.DuelLostAccent,
+                    "Duel lost"
+                );
+            },
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.ToastAnnouncements,
+            Title = "Announcements",
+            Description = "Messages the trophy site sends to every player (tournaments, events...).",
+            Accent = TrophyListener.AnnouncementAccent,
+            Preview = () => Toast.Show(
+                "Tournoi dans 10 minutes !",
+                "Rendez-vous sur la scène principale.",
+                8f,
+                TrophyListener.AnnouncementAccent,
+                "Announcement"
             ),
         },
     };
@@ -430,6 +478,14 @@ public class SettingsWindow : MonoBehaviour
                     Toast.Show("Not found", "No Songs folder found in the usual places.");
                 }
             },
+        },
+        new Setting
+        {
+            Kind = Kind.Choice,
+            Choice = Plugin.DownloadFormat,
+            Choices = new[] { "sng", "zip" },
+            Title = "Chart format",
+            Description = "sng = one .sng file. zip = the classic folder (song.ini, chart, audio), like the site's zip.",
         },
         new Setting
         {

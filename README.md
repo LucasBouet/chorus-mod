@@ -270,16 +270,16 @@ file: the **SETTINGS** button under the main-menu player card opens a
 settings window split into pages (arrows at the bottom, or Left /
 Right):
 
-1. **Notifications & gameplay**: each toast on/off with a preview, and
-   the solo counter tweak.
-2. **Trophy site**: Discord name (with a Detect button reading
+1. **Notifications**: each toast on/off with a preview.
+2. **Gameplay**: the solo counter tweak.
+3. **Trophy site**: Discord name (with a Detect button reading
    Rythmania Tracker), notification channel (masked), ntfy server,
    player profile API.
-3. **Search window**: open/close key (Change, then press the new key),
+4. **Search window**: open/close key (Change, then press the new key),
    default instrument, album art, width, height, background opacity.
-4. **Downloads & library**: Songs folder (with Detect), full rescan,
+5. **Downloads & library**: Songs folder (with Detect), full rescan,
    library export file, blocking game keys while typing.
-5. **Advanced**: chart API, search endpoint, file host, raw response
+6. **Advanced**: chart API, search endpoint, file host, raw response
    logging.
 
 Text fields: click to edit, Enter or click elsewhere to save, Esc to
@@ -296,6 +296,7 @@ name reloads the player card.
 | `ToggleKey` | `F9` | Key to open the overlay. |
 | `BlockGameInput` | `true` | Prevents typed keys from triggering game shortcuts. |
 | `FullScan` | `false` | Set to `true` if new songs don't show up after install. |
+| `DownloadFormat` | `sng` | `sng` = one `.sng` file per chart. `zip` = the classic folder (`song.ini`, chart, audio, album art), like the site's zip download: the `.sng` is unpacked into the chart's folder. |
 | `PanelWidth` | `1180` | Overlay width in pixels. |
 | `PanelHeight` | `780` | Overlay height. |
 | `ShowAlbumArt` | `true` | Album art. Turn off if image display doesn't work on your build. |
@@ -323,9 +324,15 @@ name reloads the player card.
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 
 Events (`trophy_unlocked`, `record_beaten`, `level_up`,
-`challenge_received`) are written to the BepInEx
+`challenge_received`, `challenge_won`, `challenge_lost`,
+`global_notification`) are written to the BepInEx
 log; those whose `username` matches `Username` (case-insensitive) are
 also shown as an in-game toast (top right).
+
+Events sent while the game was closed aren't lost: the time of the
+last one received is kept in `BepInEx/config/chorus-mod-trophies-state.json`,
+and the next launch first catches up on everything since then (ntfy.sh
+keeps events for 12 hours), then goes on live.
 
 On the main menu only, a player card (top left) shows the `Username`'s
 avatar, trophy count, full combos, best score and latest trophy. With
@@ -342,6 +349,8 @@ of toast on or off and previews it. Choices are saved in
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
 | `ChallengeReceived` | `true` | Toast when another player challenges you to a duel. |
+| `ChallengeResult` | `true` | Toast when one of your duels is won (green, with an animation) or lost. |
+| `Announcement` | `true` | Toast for announcements sent to every player (`global_notification`, shown whatever `Username` is). |
 
 The same window has a Gameplay section, saved in `[Gameplay]`:
 

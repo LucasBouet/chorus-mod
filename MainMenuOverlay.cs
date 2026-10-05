@@ -78,6 +78,7 @@ public class MainMenuOverlay : MonoBehaviour
 
     private readonly AlbumArtCache _avatars = new();
     private readonly SettingsButton _settingsButton = new();
+    private readonly QuitButton _quitButton = new();
     private string _avatarUrl = "";
     private bool _avatarApplied;
 
@@ -146,6 +147,7 @@ public class MainMenuOverlay : MonoBehaviour
         UpdateAvatar(visible);
         Animate(visible, dt);
         _settingsButton.Tick(visible && _shown >= 1f);
+        _quitButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
     }
 
     private void MaybeFetch(string username)
@@ -354,18 +356,36 @@ public class MainMenuOverlay : MonoBehaviour
 
             var songSelect = IsOpen(mainMenu.songSelect);
             var settings = IsOpen(mainMenu.settingsMenu);
+            var controlMapper = IsControlMapperOpen(mainMenu);
 
             // Diagnostic: one line per change, never per frame.
             LogState(
                 $"MainMenu: isActive={mainMenu.isActive}, transitioning={BaseMenu.transitioning}, "
-                    + $"songSelect={songSelect}, settings={settings}"
+                    + $"songSelect={songSelect}, settings={settings}, controlMapper={controlMapper}"
             );
 
-            return mainMenu.isActive && !songSelect && !settings;
+            return mainMenu.isActive && !songSelect && !settings && !controlMapper;
         }
         catch (Exception e)
         {
             LogState($"MainMenu: detection failed: {e.Message}");
+            return false;
+        }
+    }
+
+    /// The controller mapping screen (Space on the main menu) is Rewired's
+    /// ControlMapper: MainMenu stays active under it, and the card would
+    /// cover its close button. Kept apart so a failure here only loses
+    /// this check, not the whole detection.
+    private static bool IsControlMapperOpen(MainMenu mainMenu)
+    {
+        try
+        {
+            var mapper = mainMenu.controlMapper;
+            return mapper != null && mapper.isOpen;
+        }
+        catch (Exception)
+        {
             return false;
         }
     }
@@ -452,6 +472,7 @@ public class MainMenuOverlay : MonoBehaviour
 
             BuildLevel(panel, font);
             _settingsButton.Build(_root, font);
+            _quitButton.Build(canvasObject.transform, font);
 
             Plugin.Logger.LogInfo("Player card: UI built.");
         }

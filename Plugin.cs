@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.3.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.4.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
@@ -30,6 +30,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<float> PanelHeight = null!;
     public static ConfigEntry<bool> ShowAlbumArt = null!;
     public static ConfigEntry<string> LibraryExportPath = null!;
+    public static ConfigEntry<string> DownloadFormat = null!;
     public static ConfigEntry<string> NtfyServer = null!;
     public static ConfigEntry<string> NtfyTopic = null!;
     public static ConfigEntry<string> TrophyUsername = null!;
@@ -38,6 +39,8 @@ public class Plugin : BasePlugin
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
     public static ConfigEntry<bool> ToastChallenges = null!;
+    public static ConfigEntry<bool> ToastAnnouncements = null!;
+    public static ConfigEntry<bool> ToastDuelResults = null!;
     public static ConfigEntry<bool> HideSoloCounterInMultiplayer = null!;
 
     public override void Load()
@@ -97,6 +100,19 @@ public class Plugin : BasePlugin
             true,
             "Shows album art in the list. Set to false if loading images "
                 + "causes issues or slowdowns."
+        );
+
+        DownloadFormat = Config.Bind(
+            "General",
+            "DownloadFormat",
+            "sng",
+            new ConfigDescription(
+                "Format charts are installed in. sng = a single .sng file "
+                    + "(default). zip = the classic folder (song.ini, chart, "
+                    + "audio...), like the site's zip download, unpacked into "
+                    + "the Songs folder.",
+                new AcceptableValueList<string>("sng", "zip")
+            )
         );
 
         LibraryExportPath = Config.Bind(
@@ -220,6 +236,21 @@ public class Plugin : BasePlugin
             "ChallengeReceived",
             true,
             "Toast when another player challenges you to a duel."
+        );
+
+        ToastDuelResults = Config.Bind(
+            "Notifications",
+            "ChallengeResult",
+            true,
+            "Toast when a duel you took part in is decided (won or lost)."
+        );
+
+        ToastAnnouncements = Config.Bind(
+            "Notifications",
+            "Announcement",
+            true,
+            "Toast for announcements sent by the trophy site to every player "
+                + "(tournaments, events...)."
         );
 
         HideSoloCounterInMultiplayer = Config.Bind(
