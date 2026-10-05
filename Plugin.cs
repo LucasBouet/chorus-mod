@@ -38,6 +38,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
     public static ConfigEntry<bool> ToastChallenges = null!;
+    public static ConfigEntry<bool> ToastAnnouncements = null!;
     public static ConfigEntry<bool> HideSoloCounterInMultiplayer = null!;
 
     public override void Load()
@@ -220,6 +221,14 @@ public class Plugin : BasePlugin
             "ChallengeReceived",
             true,
             "Toast when another player challenges you to a duel."
+        );
+
+        ToastAnnouncements = Config.Bind(
+            "Notifications",
+            "Announcement",
+            true,
+            "Toast for announcements sent by the trophy site to every player "
+                + "(tournaments, events...)."
         );
 
         HideSoloCounterInMultiplayer = Config.Bind(

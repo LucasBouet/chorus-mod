@@ -323,7 +323,7 @@ name reloads the player card.
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 
 Events (`trophy_unlocked`, `record_beaten`, `level_up`,
-`challenge_received`) are written to the BepInEx
+`challenge_received`, `global_notification`) are written to the BepInEx
 log; those whose `username` matches `Username` (case-insensitive) are
 also shown as an in-game toast (top right).
 
@@ -342,6 +342,7 @@ of toast on or off and previews it. Choices are saved in
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
 | `ChallengeReceived` | `true` | Toast when another player challenges you to a duel. |
+| `Announcement` | `true` | Toast for announcements sent to every player (`global_notification`, shown whatever `Username` is). |
 
 The same window has a Gameplay section, saved in `[Gameplay]`:
 

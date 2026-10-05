@@ -110,7 +110,7 @@ var
   BtnBrowseSongs: TButton;
 
   TrophiesPage: TWizardPage;
-  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges: TCheckBox;
+  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges, ChkToastAnnouncements: TCheckBox;
   EdtUsername, EdtTopic: TEdit;
 
 // ---------------------------------------------------------------------
@@ -194,6 +194,7 @@ begin
   ChkToastRecords.Enabled := Enabled;
   ChkToastLevels.Enabled := Enabled;
   ChkToastChallenges.Enabled := Enabled;
+  ChkToastAnnouncements.Enabled := Enabled;
 end;
 
 function NewHint(Page: TWizardPage; Top, Left: Integer; Text: String): TNewStaticText;
@@ -292,12 +293,14 @@ begin
   end;
   Y := Y + 20;
 
-  // Two columns: a fourth row wouldn't fit the page.
+  // Two columns: one row each wouldn't fit the page.
   ChkToastTrophies := NewCheck(TrophiesPage, Y, 12, 'You unlock a trophy');
   ChkToastLevels := NewCheck(TrophiesPage, Y, 230, 'You level up');
   Y := Y + 22;
   ChkToastRecords := NewCheck(TrophiesPage, Y, 12, 'One of your records is beaten');
   ChkToastChallenges := NewCheck(TrophiesPage, Y, 230, 'Someone challenges you to a duel');
+  Y := Y + 22;
+  ChkToastAnnouncements := NewCheck(TrophiesPage, Y, 12, 'The trophy site makes an announcement');
 
   UpdateTrophyControls(nil);
 end;
@@ -549,6 +552,7 @@ begin
     StringChangeEx(ConfigText, '{{TOAST_RECORDS}}', BoolToCfg(ChkToastRecords.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_LEVELS}}', BoolToCfg(ChkToastLevels.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_CHALLENGES}}', BoolToCfg(ChkToastChallenges.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_ANNOUNCEMENTS}}', BoolToCfg(ChkToastAnnouncements.Checked), True);
 
     // The plugin refuses to install a song if this folder doesn't exist
     // yet -- create it now rather than letting the first download fail.

@@ -92,7 +92,7 @@ public class SettingsWindow : MonoBehaviour
     private const float Gap = 6f;
 
     private const float MinPanelW = 900f;
-    private const float MinPanelH = 580f;
+    private const float MinPanelH = 660f;
 
     private static SettingsWindow? _instance;
 
@@ -287,6 +287,21 @@ public class SettingsWindow : MonoBehaviour
                 6f,
                 TrophyListener.ChallengeAccent,
                 "Duel challenge"
+            ),
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.ToastAnnouncements,
+            Title = "Announcements",
+            Description = "Messages the trophy site sends to every player (tournaments, events...).",
+            Accent = TrophyListener.AnnouncementAccent,
+            Preview = () => Toast.Show(
+                "Tournoi dans 10 minutes !",
+                "Rendez-vous sur la scène principale.",
+                8f,
+                TrophyListener.AnnouncementAccent,
+                "Announcement"
             ),
         },
     };

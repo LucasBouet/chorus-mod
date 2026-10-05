@@ -45,6 +45,10 @@ public static class TrophyListener
     internal static readonly Color RecordAccent = new(1f, 0.32f, 0.45f);
     internal static readonly Color LevelAccent = new(0.68f, 0.38f, 1f);
     internal static readonly Color ChallengeAccent = new(1f, 0.48f, 0.12f);
+    internal static readonly Color AnnouncementAccent = new(0.25f, 0.92f, 0.78f);
+
+    // Announcements are free text meant to be read: longer on screen.
+    private const float AnnouncementSeconds = 8f;
 
     private static readonly int[] RetryDelaysSeconds = { 1, 2, 5, 10, 30 };
 
@@ -403,6 +407,23 @@ public static class TrophyListener
                             ToastSeconds,
                             LevelAccent,
                             "Level up"
+                        );
+                    }
+                    break;
+
+                case "global_notification":
+                    // Broadcast to every player: no username to filter on.
+                    Plugin.Logger.LogInfo(
+                        $"[Announcement] {GetString(payload, "subject")}: {GetString(payload, "text")}"
+                    );
+                    if (Plugin.ToastAnnouncements.Value)
+                    {
+                        Toast.Show(
+                            GetString(payload, "subject"),
+                            GetString(payload, "text"),
+                            AnnouncementSeconds,
+                            AnnouncementAccent,
+                            "Announcement"
                         );
                     }
                     break;
