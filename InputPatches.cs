@@ -73,7 +73,7 @@ public static class InputPatches
     /// panel from our own Update() anymore.
     private static bool GetKeyPrefix(KeyCode key, ref bool __result)
     {
-        if (!SwallowKeys || key == Plugin.ToggleKey.Value)
+        if (!SwallowKeys || !Plugin.BlockGameInput.Value || key == Plugin.ToggleKey.Value)
         {
             return true; // let the original call through
         }

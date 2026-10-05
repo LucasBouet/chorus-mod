@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.2.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.3.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
@@ -246,16 +246,15 @@ public class Plugin : BasePlugin
         if (string.IsNullOrWhiteSpace(SongsFolder.Value))
         {
             Logger.LogWarning(
-                "No Songs folder auto-detected. Set SongsFolder in "
-                    + "BepInEx/config/fr.lucas.chorus-mod.cfg, otherwise "
-                    + "downloads will fail."
+                "No Songs folder auto-detected. Set it from the SETTINGS "
+                    + "button on the main menu (or SongsFolder in the .cfg), "
+                    + "otherwise downloads will fail."
             );
         }
 
-        if (BlockGameInput.Value)
-        {
-            InputPatches.Apply("fr.lucas.chorus-mod");
-        }
+        // Always patched: BlockGameInput is checked on every call, so it
+        // can be switched from the settings window without a restart.
+        InputPatches.Apply("fr.lucas.chorus-mod");
 
         InstalledSongs.EnsureLoaded();
 
@@ -283,7 +282,7 @@ public class Plugin : BasePlugin
     /// %APPDATA%\Rythmania Tracker\player.json:
     /// {"discordId": "...", "discordName": "..."}. Best-effort: any problem
     /// just means no auto-fill.
-    private static string DetectTrackerUsername()
+    internal static string DetectTrackerUsername()
     {
         try
         {
@@ -316,7 +315,7 @@ public class Plugin : BasePlugin
     /// detection can be 100% reliable -- hence the SongsFolder setting as a
     /// fallback. No absolute path is hardcoded: everything is rebuilt from
     /// the OS's special folders and from the game's actual location.
-    private static string DetectSongsFolder()
+    internal static string DetectSongsFolder()
     {
         foreach (var path in CandidateSongFolders())
         {

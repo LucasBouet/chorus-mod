@@ -31,7 +31,7 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.2"
+#define MyAppVersion "1.3"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
 ; ntfy topic the trophy site publishes to, pre-filled on the Trophies
@@ -279,8 +279,8 @@ begin
 
   NewHint(
     TrophiesPage, Y, 0,
-    'Given by the trophy site. Leave empty to set it later in the .cfg '
-      + '(NtfyTopic): no notifications until then.'
+    'Given by the trophy site. Leave empty to set it later in game '
+      + '(SETTINGS on the main menu): no notifications until then.'
   );
   Y := Y + 28;
 

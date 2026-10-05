@@ -34,7 +34,7 @@ public class ChorusUI : MonoBehaviour
     private static float PanelH => Plugin.PanelHeight.Value;
     private static float RowH => Plugin.ShowAlbumArt.Value ? 68f : 46f;
 
-    private static readonly string[] Instruments =
+    internal static readonly string[] Instruments =
     {
         "guitar",
         "bass",
@@ -154,7 +154,9 @@ public class ChorusUI : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyDown(Plugin.ToggleKey.Value))
+        // Not on top of the settings window: that's where the key is
+        // rebound, and the window owns the keyboard.
+        if (Input.GetKeyDown(Plugin.ToggleKey.Value) && !SettingsWindow.IsOpen)
         {
             Toggle();
         }

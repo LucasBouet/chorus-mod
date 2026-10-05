@@ -52,9 +52,11 @@ public static class TrophyListener
 
     private static readonly HashSet<string> SeenMessageIds = new();
 
+    private static readonly object Gate = new();
+
     private static string? _lastMessageId;
     private static long _lastEventTime;
-    private static bool _started;
+    private static CancellationTokenSource? _run;
 
     private static HttpClient CreateClient()
     {
@@ -66,46 +68,70 @@ public static class TrophyListener
     }
 
     /// Called once from Plugin.Load(). Does nothing if no topic is set.
-    public static void Start()
+    public static void Start() => Restart();
+
+    /// Stops the current stream, if any, and listens again with the
+    /// current settings: called when the topic or the server is changed
+    /// from the settings window.
+    public static void Restart()
     {
-        if (_started)
+        lock (Gate)
         {
-            return;
+            if (_run != null)
+            {
+                _run.Cancel();
+                _run = null;
+                Plugin.Logger.LogInfo("Trophies: listener stopped (settings changed).");
+            }
+
+            // New topic or server: nothing to resume from.
+            _lastMessageId = null;
+            _lastEventTime = 0;
+
+            var topic = Plugin.NtfyTopic.Value.Trim();
+            if (string.IsNullOrEmpty(topic))
+            {
+                Plugin.Logger.LogInfo(
+                    "Trophies: no notification channel (NtfyTopic) set, listener disabled."
+                );
+                return;
+            }
+
+            var url = $"{Plugin.NtfyServer.Value.Trim().TrimEnd('/')}/{topic}/sse";
+            var run = new CancellationTokenSource();
+            _run = run;
+
+            // Thread-pool threads are background threads: this never keeps
+            // the game process alive on exit.
+            Task.Run(() => RunAsync(url, run.Token));
         }
-
-        var topic = Plugin.NtfyTopic.Value.Trim();
-        if (string.IsNullOrEmpty(topic))
-        {
-            Plugin.Logger.LogInfo(
-                "Trophies: no NtfyTopic set in [Trophies], listener disabled."
-            );
-            return;
-        }
-
-        _started = true;
-        var url = $"{Plugin.NtfyServer.Value.Trim().TrimEnd('/')}/{topic}/sse";
-
-        // Thread-pool threads are background threads: this never keeps the
-        // game process alive on exit.
-        Task.Run(() => RunAsync(url));
     }
 
-    private static async Task RunAsync(string baseUrl)
+    private static async Task RunAsync(string baseUrl, CancellationToken stop)
     {
         var attempt = 0;
 
-        while (true)
+        while (!stop.IsCancellationRequested)
         {
             try
             {
-                var receivedAny = await ListenOnceAsync(ResumeUrl(baseUrl))
+                var receivedAny = await ListenOnceAsync(ResumeUrl(baseUrl), stop)
                     .ConfigureAwait(false);
+                if (stop.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 if (receivedAny)
                 {
                     attempt = 0;
                 }
 
                 Plugin.Logger.LogWarning("Trophies: stream closed, reconnecting.");
+            }
+            catch (Exception) when (stop.IsCancellationRequested)
+            {
+                return;
             }
             catch (Exception e)
             {
@@ -114,7 +140,14 @@ public static class TrophyListener
 
             var delay = RetryDelaysSeconds[Math.Min(attempt, RetryDelaysSeconds.Length - 1)];
             attempt++;
-            await Task.Delay(TimeSpan.FromSeconds(delay)).ConfigureAwait(false);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(delay), stop).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
         }
     }
 
@@ -133,11 +166,12 @@ public static class TrophyListener
     }
 
     /// Returns whether at least one event came through, to reset backoff.
-    private static async Task<bool> ListenOnceAsync(string url)
+    private static async Task<bool> ListenOnceAsync(string url, CancellationToken stop)
     {
         Plugin.Logger.LogInfo($"Trophies: connecting to {url}");
 
-        using var watchdog = new CancellationTokenSource();
+        // Fires on silence (CancelAfter below) or on Restart().
+        using var watchdog = CancellationTokenSource.CreateLinkedTokenSource(stop);
         using var response = await Http.SendAsync(
                 new HttpRequestMessage(HttpMethod.Get, url),
                 HttpCompletionOption.ResponseHeadersRead,
@@ -168,6 +202,10 @@ public static class TrophyListener
             {
                 line = await reader.ReadLineAsync().ConfigureAwait(false);
             }
+            catch (Exception) when (stop.IsCancellationRequested)
+            {
+                return receivedAny;
+            }
             catch (Exception) when (watchdog.IsCancellationRequested)
             {
                 Plugin.Logger.LogWarning(
@@ -177,7 +215,7 @@ public static class TrophyListener
                 return receivedAny;
             }
 
-            if (line == null)
+            if (line == null || stop.IsCancellationRequested)
             {
                 return receivedAny;
             }
