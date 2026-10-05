@@ -44,6 +44,7 @@ public static class TrophyListener
     internal static readonly Color TrophyAccent = new(1f, 0.76f, 0.22f);
     internal static readonly Color RecordAccent = new(1f, 0.32f, 0.45f);
     internal static readonly Color LevelAccent = new(0.68f, 0.38f, 1f);
+    internal static readonly Color ChallengeAccent = new(1f, 0.48f, 0.12f);
 
     private static readonly int[] RetryDelaysSeconds = { 1, 2, 5, 10, 30 };
 
@@ -368,12 +369,46 @@ public static class TrophyListener
                     }
                     break;
 
+                case "challenge_received":
+                    Plugin.Logger.LogInfo(
+                        $"[Duel] {user}: challenged by {GetString(payload, "challenger_name")} on "
+                            + $"{GetString(payload, "artist")} - {GetString(payload, "song")} "
+                            + $"(charter {GetString(payload, "charter")}, "
+                            + $"{GetString(payload, "instrument")} {GetString(payload, "difficulty")}), "
+                            + $"score to beat {GetString(payload, "score_to_beat")}"
+                    );
+                    if (showToast && Plugin.ToastChallenges.Value)
+                    {
+                        Toast.ShowClash(
+                            GetString(payload, "song"),
+                            ChallengeMessage(
+                                GetString(payload, "challenger_name"),
+                                GetString(payload, "instrument"),
+                                GetString(payload, "difficulty"),
+                                GetString(payload, "score_to_beat")
+                            ),
+                            ToastSeconds + 1f,
+                            ChallengeAccent,
+                            "Duel challenge"
+                        );
+                    }
+                    break;
+
                 default:
                     Plugin.Logger.LogInfo($"Trophies: unknown event: {message}");
                     break;
             }
         }
     }
+
+    /// "MrPlopy challenges you · Guitar Expert · beat 268,000"
+    internal static string ChallengeMessage(
+        string challenger,
+        string instrument,
+        string difficulty,
+        string scoreToBeat
+    ) =>
+        $"{challenger} challenges you · {instrument} {difficulty} · beat {FormatScore(scoreToBeat)}";
 
     /// 856742 -> "856,742"; anything unparsable is shown as-is.
     internal static string FormatScore(string score) =>

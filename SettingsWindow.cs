@@ -109,6 +109,20 @@ public class SettingsWindow : MonoBehaviour
                     "Level up"
                 ),
             },
+            new Row
+            {
+                Entry = Plugin.ToastChallenges,
+                Title = "Duel challenge",
+                Description = "When another player challenges you to a duel.",
+                Accent = TrophyListener.ChallengeAccent,
+                Preview = () => Toast.ShowClash(
+                    "Through the Fire and Flames",
+                    TrophyListener.ChallengeMessage("MrPlopy", "Guitar", "Expert", "268000"),
+                    6f,
+                    TrophyListener.ChallengeAccent,
+                    "Duel challenge"
+                ),
+            },
         };
 
         _gameplayRows = new[]
@@ -117,7 +131,7 @@ public class SettingsWindow : MonoBehaviour
             {
                 Entry = Plugin.HideSoloCounterInMultiplayer,
                 Title = "Hide solo counter in multiplayer",
-                Description = "Hides the solo percentage during songs with more than one player (local or online).",
+                Description = "Hides the solo percentage in local multiplayer and whenever you're connected to an online server.",
                 Accent = Toast.DefaultAccent,
             },
         };

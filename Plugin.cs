@@ -37,6 +37,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<bool> ToastTrophies = null!;
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
+    public static ConfigEntry<bool> ToastChallenges = null!;
     public static ConfigEntry<bool> HideSoloCounterInMultiplayer = null!;
 
     public override void Load()
@@ -214,12 +215,19 @@ public class Plugin : BasePlugin
             "Toast when you level up."
         );
 
+        ToastChallenges = Config.Bind(
+            "Notifications",
+            "ChallengeReceived",
+            true,
+            "Toast when another player challenges you to a duel."
+        );
+
         HideSoloCounterInMultiplayer = Config.Bind(
             "Gameplay",
             "HideSoloCounterInMultiplayer",
             false,
-            "Hides the solo percentage counter during songs with more than "
-                + "one player (local or online). Also toggled in-game from "
+            "Hides the solo percentage counter in local multiplayer and "
+                + "while connected to an online server. Also toggled in-game from "
                 + "the SETTINGS button under the main-menu player card."
         );
 

@@ -299,7 +299,8 @@ launch.
 | `Username` | auto-detected | Your trophy-site username: only your events get a toast. Read from `discordName` in `%APPDATA%\Rythmania Tracker\player.json` when empty. Empty = toast everyone's events. |
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 
-Events (`trophy_unlocked`, `record_beaten`) are written to the BepInEx
+Events (`trophy_unlocked`, `record_beaten`, `level_up`,
+`challenge_received`) are written to the BepInEx
 log; those whose `username` matches `Username` (case-insensitive) are
 also shown as an in-game toast (top right).
 
@@ -315,12 +316,13 @@ off and preview it. Choices are saved in `[Notifications]`:
 | `TrophyUnlocked` | `true` | Toast when you unlock a trophy. |
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
+| `ChallengeReceived` | `true` | Toast when another player challenges you to a duel. |
 
 The same window has a Gameplay section, saved in `[Gameplay]`:
 
 | Key | Default | Role |
 | --- | --- | --- |
-| `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter during songs with more than one player (local or online). |
+| `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter in local multiplayer and while connected to an online server. |
 
 ---
 
