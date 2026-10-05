@@ -354,18 +354,36 @@ public class MainMenuOverlay : MonoBehaviour
 
             var songSelect = IsOpen(mainMenu.songSelect);
             var settings = IsOpen(mainMenu.settingsMenu);
+            var controlMapper = IsControlMapperOpen(mainMenu);
 
             // Diagnostic: one line per change, never per frame.
             LogState(
                 $"MainMenu: isActive={mainMenu.isActive}, transitioning={BaseMenu.transitioning}, "
-                    + $"songSelect={songSelect}, settings={settings}"
+                    + $"songSelect={songSelect}, settings={settings}, controlMapper={controlMapper}"
             );
 
-            return mainMenu.isActive && !songSelect && !settings;
+            return mainMenu.isActive && !songSelect && !settings && !controlMapper;
         }
         catch (Exception e)
         {
             LogState($"MainMenu: detection failed: {e.Message}");
+            return false;
+        }
+    }
+
+    /// The controller mapping screen (Space on the main menu) is Rewired's
+    /// ControlMapper: MainMenu stays active under it, and the card would
+    /// cover its close button. Kept apart so a failure here only loses
+    /// this check, not the whole detection.
+    private static bool IsControlMapperOpen(MainMenu mainMenu)
+    {
+        try
+        {
+            var mapper = mainMenu.controlMapper;
+            return mapper != null && mapper.isOpen;
+        }
+        catch (Exception)
+        {
             return false;
         }
     }
