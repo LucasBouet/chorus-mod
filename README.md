@@ -265,6 +265,29 @@ on the main menu or the song-selection screen during downloads.
 `<game>/BepInEx/config/fr.lucas.chorus-mod.cfg`, generated on first
 launch.
 
+Everything below can also be changed in game, without touching the
+file: the **SETTINGS** button under the main-menu player card opens a
+settings window split into pages (arrows at the bottom, or Left /
+Right):
+
+1. **Notifications & gameplay**: each toast on/off with a preview, and
+   the solo counter tweak.
+2. **Trophy site**: Discord name (with a Detect button reading
+   Rythmania Tracker), notification channel (masked), ntfy server,
+   player profile API.
+3. **Search window**: open/close key (Change, then press the new key),
+   default instrument, album art, width, height, background opacity.
+4. **Downloads & library**: Songs folder (with Detect), full rescan,
+   library export file, blocking game keys while typing.
+5. **Advanced**: chart API, search endpoint, file host, raw response
+   logging.
+
+Text fields: click to edit, Enter or click elsewhere to save, Esc to
+cancel, Ctrl+V or Paste to paste, Default to go back to the default
+value. Changes are saved to the `.cfg` immediately and apply right
+away: a new channel or server reconnects the trophy listener, a new
+name reloads the player card.
+
 ### `[General]`
 
 | Key | Default | Role |
@@ -299,22 +322,32 @@ launch.
 | `Username` | auto-detected | Your trophy-site username: only your events get a toast. Read from `discordName` in `%APPDATA%\Rythmania Tracker\player.json` when empty. Empty = toast everyone's events. |
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 
-Events (`trophy_unlocked`, `record_beaten`) are written to the BepInEx
+Events (`trophy_unlocked`, `record_beaten`, `level_up`,
+`challenge_received`) are written to the BepInEx
 log; those whose `username` matches `Username` (case-insensitive) are
 also shown as an in-game toast (top right).
 
 On the main menu only, a player card (top left) shows the `Username`'s
-avatar, trophy count, full combos, best score and latest trophy.
+avatar, trophy count, full combos, best score and latest trophy. With
+no `Username` set, it says so and the SETTINGS button stays reachable.
 
-The SETTINGS button under the card (mouse) opens a settings window, in
-the same style as the search window, to turn each kind of toast on or
-off and preview it. Choices are saved in `[Notifications]`:
+The SETTINGS button under the card (mouse) opens the settings window
+(see [Configuration](#configuration)); its first page turns each kind
+of toast on or off and previews it. Choices are saved in
+`[Notifications]`:
 
 | Key | Default | Role |
 | --- | --- | --- |
 | `TrophyUnlocked` | `true` | Toast when you unlock a trophy. |
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
+| `ChallengeReceived` | `true` | Toast when another player challenges you to a duel. |
+
+The same window has a Gameplay section, saved in `[Gameplay]`:
+
+| Key | Default | Role |
+| --- | --- | --- |
+| `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter in local multiplayer and while connected to an online server. |
 
 ---
 

@@ -83,6 +83,8 @@ public class MainMenuOverlay : MonoBehaviour
 
     private PlayerLookup? _lookupResult; // written by the fetch task
     private bool _fetching;
+    private string _fetchingFor = "";
+    private string? _cardUser; // username the card currently shows
     private float _lastFetchTime = float.NegativeInfinity;
     private bool _hasPlayer;
 
@@ -118,10 +120,24 @@ public class MainMenuOverlay : MonoBehaviour
             _onMainMenu = IsOnMainMenu();
         }
 
+        // Shown even with no username: the SETTINGS button under it is
+        // where the name gets set.
         var username = Plugin.TrophyUsername.Value.Trim();
-        var visible = _onMainMenu && username.Length > 0;
+        var visible = _onMainMenu;
 
-        if (visible)
+        if (username != _cardUser)
+        {
+            // Changed from the settings window (or first frame).
+            _cardUser = username;
+            _hasPlayer = false;
+            _refreshRequested = true;
+            if (username.Length == 0)
+            {
+                ShowMessage("No player set", "Set your Discord name in SETTINGS", "");
+            }
+        }
+
+        if (visible && username.Length > 0)
         {
             MaybeFetch(username);
         }
@@ -147,6 +163,7 @@ public class MainMenuOverlay : MonoBehaviour
 
         _refreshRequested = false;
         _fetching = true;
+        _fetchingFor = username;
         _lastFetchTime = Time.unscaledTime;
 
         if (!_hasPlayer)
@@ -172,6 +189,13 @@ public class MainMenuOverlay : MonoBehaviour
 
         _fetching = false;
 
+        if (_fetchingFor != username)
+        {
+            // Answer for a name that has been changed since: ask again.
+            _refreshRequested = true;
+            return;
+        }
+
         switch (result.Status)
         {
             case PlayerLookupStatus.Found when result.Player != null:
@@ -180,7 +204,7 @@ public class MainMenuOverlay : MonoBehaviour
 
             case PlayerLookupStatus.NotFound:
                 _hasPlayer = false;
-                ShowMessage(username, "Player not found on the trophy site", "Check Username in [Trophies]");
+                ShowMessage(username, "Player not found on the trophy site", "Check your Discord name in SETTINGS");
                 break;
 
             default:

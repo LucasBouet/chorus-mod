@@ -22,7 +22,9 @@ public static class InputBlocker
 
     public static void SetKeyboardEnabled(bool enabled)
     {
-        if (_unavailable || !Plugin.BlockGameInput.Value)
+        // Re-enabling always goes through: BlockGameInput may have been
+        // switched off while a window had the keyboard disabled.
+        if (_unavailable || (!enabled && !Plugin.BlockGameInput.Value))
         {
             return;
         }

@@ -31,7 +31,7 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.2"
+#define MyAppVersion "1.3"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
 ; ntfy topic the trophy site publishes to, pre-filled on the Trophies
@@ -110,7 +110,7 @@ var
   BtnBrowseSongs: TButton;
 
   TrophiesPage: TWizardPage;
-  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels: TCheckBox;
+  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges: TCheckBox;
   EdtUsername, EdtTopic: TEdit;
 
 // ---------------------------------------------------------------------
@@ -193,6 +193,7 @@ begin
   ChkToastTrophies.Enabled := Enabled;
   ChkToastRecords.Enabled := Enabled;
   ChkToastLevels.Enabled := Enabled;
+  ChkToastChallenges.Enabled := Enabled;
 end;
 
 function NewHint(Page: TWizardPage; Top, Left: Integer; Text: String): TNewStaticText;
@@ -278,8 +279,8 @@ begin
 
   NewHint(
     TrophiesPage, Y, 0,
-    'Given by the trophy site. Leave empty to set it later in the .cfg '
-      + '(NtfyTopic): no notifications until then.'
+    'Given by the trophy site. Leave empty to set it later in game '
+      + '(SETTINGS on the main menu): no notifications until then.'
   );
   Y := Y + 28;
 
@@ -291,11 +292,12 @@ begin
   end;
   Y := Y + 20;
 
+  // Two columns: a fourth row wouldn't fit the page.
   ChkToastTrophies := NewCheck(TrophiesPage, Y, 12, 'You unlock a trophy');
+  ChkToastLevels := NewCheck(TrophiesPage, Y, 230, 'You level up');
   Y := Y + 22;
   ChkToastRecords := NewCheck(TrophiesPage, Y, 12, 'One of your records is beaten');
-  Y := Y + 22;
-  ChkToastLevels := NewCheck(TrophiesPage, Y, 12, 'You level up');
+  ChkToastChallenges := NewCheck(TrophiesPage, Y, 230, 'Someone challenges you to a duel');
 
   UpdateTrophyControls(nil);
 end;
@@ -546,6 +548,7 @@ begin
     StringChangeEx(ConfigText, '{{TOAST_TROPHIES}}', BoolToCfg(ChkToastTrophies.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_RECORDS}}', BoolToCfg(ChkToastRecords.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_LEVELS}}', BoolToCfg(ChkToastLevels.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_CHALLENGES}}', BoolToCfg(ChkToastChallenges.Checked), True);
 
     // The plugin refuses to install a song if this folder doesn't exist
     // yet -- create it now rather than letting the first download fail.

@@ -109,6 +109,11 @@
       <HintPath>$(InteropDir)/CloneHero.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- ConnectionState: online multiplayer detection (GameplayTweaks) -->
+    <Reference Include="CHNet.Core">
+      <HintPath>$(InteropDir)/CHNet.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
 
     <!-- Toast notifications: our own Canvas/Image/TMP text -->
     <Reference Include="UnityEngine.UIModule">

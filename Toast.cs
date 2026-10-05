@@ -48,6 +48,10 @@ public class Toast : MonoBehaviour
         // Title with a punch, a badge spin and rising sparks.
         public bool RankUp;
         public string TitleBefore;
+
+        // Duel only: two blades slam together over the badge, the panel
+        // shakes and a shockwave + spark burst goes off on impact.
+        public bool Clash;
     }
 
     private enum State
@@ -90,6 +94,17 @@ public class Toast : MonoBehaviour
     private const float SparkStagger = 0.06f;
     private const float SparkRise = 55f;
 
+    private const float ClashDelay = 0.35f;
+    private const float ClashSlideSeconds = 0.16f;
+    private const float ClashTravel = 46f;
+    private const float ClashShakeSeconds = 0.45f;
+    private const float ClashShakeAmplitude = 7f;
+    private const float ClashRingSeconds = 0.6f;
+    private const float ClashBurstSeconds = 0.7f;
+    private const float ClashBurstDistance = 46f;
+
+    // Badge center, in the panel's bottom-left coordinates.
+    private static readonly Vector2 BadgeCenter = new(40f, PanelHeight * 0.5f);
 
     private static Toast? _instance;
 
@@ -100,6 +115,12 @@ public class Toast : MonoBehaviour
     private RectTransform? _progress;
     private RectTransform? _badge;
     private readonly List<Image> _sparks = new();
+    private RectTransform? _bladeLeft;
+    private RectTransform? _bladeRight;
+    private CanvasGroup? _bladeLeftGroup;
+    private CanvasGroup? _bladeRightGroup;
+    private RectTransform? _ring;
+    private CanvasGroup? _ringGroup;
     private TextMeshProUGUI? _labelText;
     private TextMeshProUGUI? _titleText;
     private TextMeshProUGUI? _messageText;
@@ -189,6 +210,35 @@ public class Toast : MonoBehaviour
         );
     }
 
+    /// Duel toast: two blades cross over the badge with an impact (panel
+    /// shake, shockwave ring, spark burst) shortly after it appears.
+    public static void ShowClash(
+        string title,
+        string message,
+        float durationSeconds,
+        Color accent,
+        string label
+    )
+    {
+        if (_instance == null)
+        {
+            Plugin.Logger.LogWarning("Toast: ShowClash() called before Initialize().");
+            return;
+        }
+
+        _instance._queue.Enqueue(
+            new Request
+            {
+                Label = label,
+                Title = title,
+                Message = message,
+                DurationSeconds = durationSeconds,
+                Accent = accent,
+                Clash = true,
+            }
+        );
+    }
+
     private void Update()
     {
         if (!_built)
@@ -244,6 +294,15 @@ public class Toast : MonoBehaviour
                         flash = Mathf.Max(flash, Mathf.Clamp01(1f - sinceFlip / GlowFlashSeconds));
                     }
                 }
+                else if (_current.Clash)
+                {
+                    var sinceImpact = _timer - ClashDelay - ClashSlideSeconds;
+                    AnimateClash(_timer - ClashDelay);
+                    if (sinceImpact >= 0f)
+                    {
+                        flash = Mathf.Max(flash, Mathf.Clamp01(1f - sinceImpact / GlowFlashSeconds));
+                    }
+                }
 
                 SetGlow(Mathf.Lerp(pulse, 1f, flash));
 
@@ -284,11 +343,13 @@ public class Toast : MonoBehaviour
     }
 
     /// Horizontal offset to the right of the resting position.
-    private void SetSlide(float offset)
+    private void SetSlide(float offset) => SetOffset(new Vector2(offset, 0f));
+
+    private void SetOffset(Vector2 offset)
     {
         if (_root != null)
         {
-            _root.anchoredPosition = new Vector2(-ScreenMargin + offset, -ScreenMargin);
+            _root.anchoredPosition = new Vector2(-ScreenMargin + offset.x, -ScreenMargin + offset.y);
         }
     }
 
@@ -378,6 +439,79 @@ public class Toast : MonoBehaviour
         }
     }
 
+    /// `since` = seconds since the blades start moving (negative = not
+    /// yet). They meet ClashSlideSeconds later: that's the impact.
+    private void AnimateClash(float since)
+    {
+        if (since < 0f || _bladeLeft == null || _bladeRight == null || _badge == null
+            || _ring == null || _ringGroup == null || _titleText == null
+            || _bladeLeftGroup == null || _bladeRightGroup == null)
+        {
+            return;
+        }
+
+        // Blades rush in from both sides (ease-in: they hit hard) and stay
+        // crossed over the badge for the rest of the toast.
+        var slide = Mathf.Clamp01(since / ClashSlideSeconds);
+        var travel = ClashTravel * (1f - slide * slide);
+        _bladeLeft.anchoredPosition = new Vector2(-travel, 0f);
+        _bladeRight.anchoredPosition = new Vector2(travel, 0f);
+        _bladeLeftGroup.alpha = slide;
+        _bladeRightGroup.alpha = slide;
+
+        var hit = since - ClashSlideSeconds;
+        if (hit < 0f)
+        {
+            return;
+        }
+
+        // Panel shake, dying out.
+        var shake = Mathf.Clamp01(1f - hit / ClashShakeSeconds);
+        SetOffset(
+            new Vector2(Mathf.Sin(hit * 95f), 0.5f * Mathf.Cos(hit * 71f))
+                * (ClashShakeAmplitude * shake * shake)
+        );
+
+        // Blades recoil a touch on impact, then settle.
+        var recoil = 1f + 0.25f * Mathf.Clamp01(1f - hit / 0.2f);
+        _bladeLeft.localScale = Vector3.one * recoil;
+        _bladeRight.localScale = Vector3.one * recoil;
+
+        // Title and badge punch.
+        var punch = EaseOut(Mathf.Clamp01(hit / RankUpPunchSeconds));
+        _titleText.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.2f, 1f, punch);
+        _badge.localScale = Vector3.one * Mathf.Lerp(1.4f, 1f, punch);
+
+        // Shockwave: a diamond outline growing and fading.
+        var ring = Mathf.Clamp01(hit / ClashRingSeconds);
+        var size = Mathf.Lerp(20f, 96f, EaseOut(ring));
+        _ring.sizeDelta = new Vector2(size, size);
+        _ringGroup.alpha = 1f - ring;
+
+        // Sparks burst out in every direction from the impact point,
+        // alternating accent and white, at slightly different distances.
+        var life = hit / ClashBurstSeconds;
+        for (var i = 0; i < _sparks.Count; i++)
+        {
+            var spark = _sparks[i];
+            var color = i % 2 == 0 ? _current.Accent : Color.white;
+
+            if (life > 1f)
+            {
+                color.a = 0f;
+                spark.color = color;
+                continue;
+            }
+
+            var angle = (i + 0.5f) * 2f * Mathf.PI / _sparks.Count;
+            var distance = 10f + ClashBurstDistance * (0.7f + 0.15f * (i % 3)) * EaseOut(life);
+            spark.rectTransform.anchoredPosition =
+                BadgeCenter + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+            color.a = 1f - life;
+            spark.color = color;
+        }
+    }
+
     private void ResetRankUp()
     {
         if (_titleText != null)
@@ -394,6 +528,19 @@ public class Toast : MonoBehaviour
         foreach (var spark in _sparks)
         {
             spark.color = Color.clear;
+        }
+
+        if (_bladeLeft != null && _bladeRight != null)
+        {
+            _bladeLeft.localScale = Vector3.one;
+            _bladeRight.localScale = Vector3.one;
+        }
+
+        if (_bladeLeftGroup != null && _bladeRightGroup != null && _ringGroup != null)
+        {
+            _bladeLeftGroup.alpha = 0f;
+            _bladeRightGroup.alpha = 0f;
+            _ringGroup.alpha = 0f;
         }
     }
 
@@ -441,6 +588,7 @@ public class Toast : MonoBehaviour
             UiKit.Place(bar.rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(4f, 0f));
 
             BuildBadge(panel);
+            BuildClash(panel);
             BuildSparks(panel);
 
             _labelText = UiKit.Text(panel, "Label", font, 11f, FontStyles.Bold, Color.white);
@@ -527,6 +675,69 @@ public class Toast : MonoBehaviour
         Diamond(AccentQuad(badge, "Core", 1f), 9f);
     }
 
+    /// Duel effects, hidden until a clash animates them: a shockwave ring
+    /// and two blades (white core, accent edge) that cross into an X over
+    /// the badge.
+    private void BuildClash(RectTransform panel)
+    {
+        var clash = UiKit.NewRect("Clash", panel);
+        clash.anchorMin = new Vector2(0f, 0.5f);
+        clash.anchorMax = new Vector2(0f, 0.5f);
+        clash.anchoredPosition = new Vector2(BadgeCenter.x, 0f);
+        clash.sizeDelta = Vector2.zero;
+
+        // Ring: four thin edges stretched around a rect rotated 45°, so
+        // resizing the rect grows the whole outline.
+        _ring = UiKit.NewRect("Ring", clash);
+        _ring.anchorMin = new Vector2(0.5f, 0.5f);
+        _ring.anchorMax = new Vector2(0.5f, 0.5f);
+        _ring.anchoredPosition = Vector2.zero;
+        _ring.sizeDelta = new Vector2(20f, 20f);
+        _ring.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        _ringGroup = _ring.gameObject.AddComponent<CanvasGroup>();
+        _ringGroup.alpha = 0f;
+        _ringGroup.blocksRaycasts = false;
+        _ringGroup.interactable = false;
+        UiKit.Place(AccentQuad(_ring, "RingTop", 1f).rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), Vector2.zero);
+        UiKit.Place(AccentQuad(_ring, "RingBottom", 1f).rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 2f));
+        UiKit.Place(AccentQuad(_ring, "RingLeft", 1f).rectTransform, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(2f, 0f));
+        UiKit.Place(AccentQuad(_ring, "RingRight", 1f).rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-2f, 0f), Vector2.zero);
+
+        _bladeLeft = BuildBlade(clash, "BladeLeft", 45f, out var leftGroup);
+        _bladeRight = BuildBlade(clash, "BladeRight", -45f, out var rightGroup);
+        _bladeLeftGroup = leftGroup;
+        _bladeRightGroup = rightGroup;
+    }
+
+    /// One blade: the holder slides straight sideways, the blade itself is
+    /// tilted inside it.
+    private RectTransform BuildBlade(RectTransform parent, string name, float angle, out CanvasGroup group)
+    {
+        var holder = UiKit.NewRect(name, parent);
+        holder.anchorMin = new Vector2(0.5f, 0.5f);
+        holder.anchorMax = new Vector2(0.5f, 0.5f);
+        holder.sizeDelta = Vector2.zero;
+        group = holder.gameObject.AddComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.blocksRaycasts = false;
+        group.interactable = false;
+
+        var blade = UiKit.NewRect("Blade", holder);
+        blade.anchorMin = new Vector2(0.5f, 0.5f);
+        blade.anchorMax = new Vector2(0.5f, 0.5f);
+        blade.sizeDelta = Vector2.zero;
+        blade.localRotation = Quaternion.Euler(0f, 0f, angle);
+
+        Diamond(AccentQuad(blade, "Edge", 0.85f), 0f).sizeDelta = new Vector2(46f, 7f);
+        Diamond(UiKit.Quad(blade, "Core", Color.white), 0f).sizeDelta = new Vector2(40f, 3f);
+        // Crossguard near the hilt end.
+        var guard = Diamond(AccentQuad(blade, "Guard", 1f), 0f);
+        guard.sizeDelta = new Vector2(3f, 13f);
+        guard.anchoredPosition = new Vector2(-14f, 0f);
+
+        return holder;
+    }
+
     /// Small diamonds, invisible until a rank-up animates them.
     private void BuildSparks(RectTransform panel)
     {
@@ -542,13 +753,14 @@ public class Toast : MonoBehaviour
         }
     }
 
-    private static void Diamond(Image image, float size)
+    private static RectTransform Diamond(Image image, float size)
     {
         var rect = image.rectTransform;
         rect.anchorMin = new Vector2(0.5f, 0.5f);
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = new Vector2(size, size);
+        return rect;
     }
 
     /// Quad recolored with each toast's accent, at a fixed opacity.
