@@ -31,15 +31,18 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.3"
+#define MyAppVersion "1.4"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
 ; ntfy topic the trophy site publishes to, pre-filled on the Trophies
 ; page. Deliberately empty in the public repo and releases: anyone who
 ; knows the topic can read every player's events and publish fake ones,
 ; so players get it from the trophy site and type it in. Only fill this
-; for a private build.
-#define NtfyTopic ""
+; for a private build, from the command line rather than here:
+;   ISCC /DNtfyTopic=<topic> /FChorusMod-Setup-private ChorusModSetup.iss
+#ifndef NtfyTopic
+  #define NtfyTopic ""
+#endif
 
 [Setup]
 AppId={{5B6C9F2E-CHORUS-MOD-CLONE-HERO-0001}}
@@ -110,7 +113,7 @@ var
   BtnBrowseSongs: TButton;
 
   TrophiesPage: TWizardPage;
-  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges, ChkToastAnnouncements: TCheckBox;
+  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges, ChkToastAnnouncements, ChkToastDuelResults: TCheckBox;
   EdtUsername, EdtTopic: TEdit;
 
 // ---------------------------------------------------------------------
@@ -195,6 +198,7 @@ begin
   ChkToastLevels.Enabled := Enabled;
   ChkToastChallenges.Enabled := Enabled;
   ChkToastAnnouncements.Enabled := Enabled;
+  ChkToastDuelResults.Enabled := Enabled;
 end;
 
 function NewHint(Page: TWizardPage; Top, Left: Integer; Text: String): TNewStaticText;
@@ -301,6 +305,7 @@ begin
   ChkToastChallenges := NewCheck(TrophiesPage, Y, 230, 'Someone challenges you to a duel');
   Y := Y + 22;
   ChkToastAnnouncements := NewCheck(TrophiesPage, Y, 12, 'The trophy site makes an announcement');
+  ChkToastDuelResults := NewCheck(TrophiesPage, Y, 230, 'One of your duels is won or lost');
 
   UpdateTrophyControls(nil);
 end;
@@ -553,6 +558,7 @@ begin
     StringChangeEx(ConfigText, '{{TOAST_LEVELS}}', BoolToCfg(ChkToastLevels.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_CHALLENGES}}', BoolToCfg(ChkToastChallenges.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_ANNOUNCEMENTS}}', BoolToCfg(ChkToastAnnouncements.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_DUEL_RESULTS}}', BoolToCfg(ChkToastDuelResults.Checked), True);
 
     // The plugin refuses to install a song if this folder doesn't exist
     // yet -- create it now rather than letting the first download fail.

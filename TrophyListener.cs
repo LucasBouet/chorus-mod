@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using BepInEx;
 using UnityEngine;
 
 namespace ChorusMod;
@@ -31,6 +32,15 @@ namespace ChorusMod;
 /// ntfy has no Last-Event-ID support; resuming after a drop goes through
 /// ?since=&lt;message id or unix time&gt; instead, and the ids already seen
 /// are remembered so the replayed overlap isn't logged twice.
+///
+/// Events sent while the game was closed: the time of the last message
+/// received and the latest ids are saved to BepInEx/config
+/// (chorus-mod-trophies-state.json). At the next launch the stream opens
+/// with ?since=&lt;that time&gt;, so ntfy first replays everything cached
+/// since then (ntfy.sh keeps 12 h) and goes on live; the saved ids drop
+/// the one message that is replayed again (since= is inclusive). With no
+/// saved state (first launch, new topic) it starts live only, rather than
+/// replaying 12 h of other players' events.
 /// </summary>
 public static class TrophyListener
 {
@@ -46,6 +56,8 @@ public static class TrophyListener
     internal static readonly Color LevelAccent = new(0.68f, 0.38f, 1f);
     internal static readonly Color ChallengeAccent = new(1f, 0.48f, 0.12f);
     internal static readonly Color AnnouncementAccent = new(0.25f, 0.92f, 0.78f);
+    internal static readonly Color DuelWonAccent = new(0.32f, 0.90f, 0.42f);
+    internal static readonly Color DuelLostAccent = new(0.58f, 0.63f, 0.74f);
 
     // Announcements are free text meant to be read: longer on screen.
     private const float AnnouncementSeconds = 8f;
@@ -58,9 +70,22 @@ public static class TrophyListener
 
     private static readonly object Gate = new();
 
+    private static readonly string StatePath = Path.Combine(
+        Paths.ConfigPath, "chorus-mod-trophies-state.json"
+    );
+
+    // Enough to cover several messages sharing the last second.
+    private const int SavedIdCount = 20;
+
     private static string? _lastMessageId;
     private static long _lastEventTime;
+    private static long _openTime;
     private static CancellationTokenSource? _run;
+
+    // What gets saved: tied to the topic and server it came from.
+    private static string _stateKey = "";
+    private static long _lastMessageTime;
+    private static readonly Queue<string> RecentIds = new();
 
     private static HttpClient CreateClient()
     {
@@ -88,9 +113,10 @@ public static class TrophyListener
                 Plugin.Logger.LogInfo("Trophies: listener stopped (settings changed).");
             }
 
-            // New topic or server: nothing to resume from.
             _lastMessageId = null;
             _lastEventTime = 0;
+            _lastMessageTime = 0;
+            RecentIds.Clear();
 
             var topic = Plugin.NtfyTopic.Value.Trim();
             if (string.IsNullOrEmpty(topic))
@@ -102,6 +128,11 @@ public static class TrophyListener
             }
 
             var url = $"{Plugin.NtfyServer.Value.Trim().TrimEnd('/')}/{topic}/sse";
+
+            // Picks up where the last session (on this same channel) left
+            // off: the first connection then replays what was missed.
+            _stateKey = url;
+            LoadState();
             var run = new CancellationTokenSource();
             _run = run;
 
@@ -155,7 +186,8 @@ public static class TrophyListener
         }
     }
 
-    /// First connection: live events only, no replay of the 12 h cache.
+    /// First connection: since the last message of the previous session if
+    /// one was saved (see LoadState), otherwise live events only.
     /// Reconnections: resume after the last message, or after the last
     /// event time if no message has arrived yet (keepalive ids aren't
     /// message ids, ntfy wouldn't accept them in since=).
@@ -269,6 +301,7 @@ public static class TrophyListener
             switch (GetString(root, "event"))
             {
                 case "open":
+                    _openTime = _lastEventTime;
                     Plugin.Logger.LogInfo(
                         $"Trophies: connected, listening on topic '{GetString(root, "topic")}'."
                     );
@@ -282,12 +315,25 @@ public static class TrophyListener
                     var id = GetString(root, "id");
                     if (id.Length > 0)
                     {
-                        if (!SeenMessageIds.Add(id))
+                        lock (Gate)
                         {
-                            return;
-                        }
+                            if (!SeenMessageIds.Add(id))
+                            {
+                                return;
+                            }
 
-                        _lastMessageId = id;
+                            _lastMessageId = id;
+                            Remember(id, _lastEventTime);
+                        }
+                    }
+
+                    // Older than the connection: replayed from ntfy's cache,
+                    // i.e. sent while we weren't listening.
+                    if (_openTime > 0 && _lastEventTime < _openTime)
+                    {
+                        Plugin.Logger.LogInfo(
+                            $"Trophies: missed event from {DateTimeOffset.FromUnixTimeSeconds(_lastEventTime).ToLocalTime():yyyy-MM-dd HH:mm:ss}, delivered now."
+                        );
                     }
 
                     // ntfy turns a body that isn't valid UTF-8, or is over
@@ -338,9 +384,17 @@ public static class TrophyListener
                 return;
             }
 
-            var user = $"{GetString(root, "username")} (#{GetString(root, "user_id")})";
             root.TryGetProperty("payload", out var payload);
-            var showToast = IsForMe(GetString(root, "username"));
+
+            // Duel results name their recipient only inside the payload.
+            var username = GetString(root, "username");
+            if (username.Length == 0)
+            {
+                username = DuelRecipient(payload);
+            }
+
+            var user = $"{username} (#{GetString(root, "user_id")})";
+            var showToast = IsForMe(username);
             if (showToast)
             {
                 // The player card's numbers just changed.
@@ -428,6 +482,46 @@ public static class TrophyListener
                     }
                     break;
 
+                case "challenge_won":
+                case "challenge_lost":
+                {
+                    var won = GetString(root, "event") == "challenge_won";
+                    var opponent = GetString(payload, "opponent_name");
+                    var (mine, theirs) = DuelScores(payload, opponent);
+                    var song = GetString(payload, "song");
+                    Plugin.Logger.LogInfo(
+                        $"[Duel] {user}: {(won ? "won" : "lost")} against {opponent} on "
+                            + $"{GetString(payload, "artist")} - {song} "
+                            + $"({GetString(payload, "instrument")} {GetString(payload, "difficulty")}), "
+                            + $"{mine} vs {theirs} (challenge #{GetString(payload, "challenge_id")})"
+                    );
+                    if (showToast && Plugin.ToastDuelResults.Value)
+                    {
+                        if (won)
+                        {
+                            Toast.ShowRankUp(
+                                $"Duel vs {opponent}",
+                                "Victory !",
+                                DuelResultMessage(song, mine, theirs),
+                                ToastSeconds + 1f,
+                                DuelWonAccent,
+                                "Duel won"
+                            );
+                        }
+                        else
+                        {
+                            Toast.Show(
+                                "Defeat",
+                                $"{opponent} beat you · {DuelResultMessage(song, mine, theirs)}",
+                                ToastSeconds + 1f,
+                                DuelLostAccent,
+                                "Duel lost"
+                            );
+                        }
+                    }
+                    break;
+                }
+
                 case "challenge_received":
                     Plugin.Logger.LogInfo(
                         $"[Duel] {user}: challenged by {GetString(payload, "challenger_name")} on "
@@ -460,6 +554,35 @@ public static class TrophyListener
         }
     }
 
+    /// The duel participant who isn't the opponent: the one the event is
+    /// for. "" if the payload doesn't say.
+    private static string DuelRecipient(JsonElement payload)
+    {
+        var opponent = GetString(payload, "opponent_name");
+        var challenger = GetString(payload, "challenger_name");
+        var challenged = GetString(payload, "challenged_name");
+        if (opponent.Length == 0)
+        {
+            return "";
+        }
+
+        return string.Equals(opponent, challenger, StringComparison.OrdinalIgnoreCase) ? challenged : challenger;
+    }
+
+    /// (recipient's score, opponent's score), formatted.
+    private static (string Mine, string Theirs) DuelScores(JsonElement payload, string opponent)
+    {
+        var challenger = FormatScore(GetString(payload, "challenger_score"));
+        var challenged = FormatScore(GetString(payload, "challenged_score"));
+        return string.Equals(opponent, GetString(payload, "challenger_name"), StringComparison.OrdinalIgnoreCase)
+            ? (challenged, challenger)
+            : (challenger, challenged);
+    }
+
+    /// "Through the Fire and Flames · 274,521 vs 268,000"
+    internal static string DuelResultMessage(string song, string mine, string theirs) =>
+        $"{song} · {mine} vs {theirs}";
+
     /// "MrPlopy challenges you · Guitar Expert · beat 268,000"
     internal static string ChallengeMessage(
         string challenger,
@@ -468,6 +591,85 @@ public static class TrophyListener
         string scoreToBeat
     ) =>
         $"{challenger} challenges you · {instrument} {difficulty} · beat {FormatScore(scoreToBeat)}";
+
+    /// Saved state: {"key": "<sse url>", "time": <unix>, "ids": [...]}.
+    /// Call under Gate.
+    private static void LoadState()
+    {
+        try
+        {
+            if (!File.Exists(StatePath))
+            {
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(StatePath));
+            var root = doc.RootElement;
+            if (GetString(root, "key") != _stateKey
+                || !root.TryGetProperty("time", out var time)
+                || !time.TryGetInt64(out var unix)
+                || unix <= 0)
+            {
+                return; // other channel: start live
+            }
+
+            _lastMessageTime = unix;
+            _lastEventTime = unix; // ResumeUrl -> ?since=<unix>
+
+            if (root.TryGetProperty("ids", out var ids) && ids.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var id in ids.EnumerateArray())
+                {
+                    var value = id.GetString();
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        SeenMessageIds.Add(value);
+                        RecentIds.Enqueue(value);
+                    }
+                }
+            }
+
+            Plugin.Logger.LogInfo(
+                "Trophies: catching up on events since "
+                    + $"{DateTimeOffset.FromUnixTimeSeconds(unix).ToLocalTime():yyyy-MM-dd HH:mm:ss}."
+            );
+        }
+        catch (Exception e)
+        {
+            Plugin.Logger.LogWarning($"Trophies: couldn't read saved state, starting live: {e.Message}");
+        }
+    }
+
+    /// Records a delivered message and saves the state. Call under Gate.
+    private static void Remember(string id, long time)
+    {
+        RecentIds.Enqueue(id);
+        while (RecentIds.Count > SavedIdCount)
+        {
+            RecentIds.Dequeue();
+        }
+
+        _lastMessageTime = Math.Max(_lastMessageTime, time);
+
+        try
+        {
+            File.WriteAllText(
+                StatePath,
+                JsonSerializer.Serialize(
+                    new Dictionary<string, object>
+                    {
+                        ["key"] = _stateKey,
+                        ["time"] = _lastMessageTime,
+                        ["ids"] = RecentIds.ToArray(),
+                    }
+                )
+            );
+        }
+        catch (Exception e)
+        {
+            Plugin.Logger.LogWarning($"Trophies: couldn't save state: {e.Message}");
+        }
+    }
 
     /// 856742 -> "856,742"; anything unparsable is shown as-is.
     internal static string FormatScore(string score) =>

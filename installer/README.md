@@ -87,7 +87,7 @@ for reinstalling on a new PC.
    check the Discord name (pre-filled from Rythmania Tracker's
    `%APPDATA%\Rythmania Tracker\player.json` when it's installed; leave
    empty to let the mod detect it at each launch), and pick which toasts
-   to show (trophy / record beaten / level up / duel challenge / announcements)
+   to show (trophy / record beaten / level up / duel challenge / duel result / announcements)
 5. Next → Install (fast, everything is already inside the Setup.exe)
 6. Optional: launch the game directly from the last page
 
