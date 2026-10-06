@@ -79,6 +79,7 @@ public class MainMenuOverlay : MonoBehaviour
     private readonly AlbumArtCache _avatars = new();
     private readonly SettingsButton _settingsButton = new();
     private readonly QuitButton _quitButton = new();
+    private readonly DuelButton _duelButton = new();
     private string _avatarUrl = "";
     private bool _avatarApplied;
 
@@ -123,8 +124,11 @@ public class MainMenuOverlay : MonoBehaviour
 
         // Shown even with no username: the SETTINGS button under it is
         // where the name gets set.
+        HandleStreamerKey();
+        ChartSelector.Tick();
+
         var username = Plugin.TrophyUsername.Value.Trim();
-        var visible = _onMainMenu;
+        var visible = _onMainMenu && !Plugin.StreamerMode.Value;
 
         if (username != _cardUser)
         {
@@ -148,6 +152,7 @@ public class MainMenuOverlay : MonoBehaviour
         Animate(visible, dt);
         _settingsButton.Tick(visible && _shown >= 1f);
         _quitButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
+        _duelButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
     }
 
     private void MaybeFetch(string username)
@@ -343,6 +348,27 @@ public class MainMenuOverlay : MonoBehaviour
         }
     }
 
+    /// Streamer mode's key, checked here because this component runs the
+    /// whole session. Ignored while typing in the mod's windows (the game
+    /// keys are swallowed then, this one included).
+    private static void HandleStreamerKey()
+    {
+        var key = Plugin.StreamerModeKey.Value;
+        if (key == KeyCode.None || !Input.GetKeyDown(key))
+        {
+            return;
+        }
+
+        var on = !Plugin.StreamerMode.Value;
+        Plugin.StreamerMode.Value = on;
+        Plugin.Logger.LogInfo($"Streamer mode {(on ? "on" : "off")}.");
+
+        if (!on)
+        {
+            Toast.Show("Streamer mode off", "The mod's overlays are visible again.");
+        }
+    }
+
     private bool IsOnMainMenu()
     {
         try
@@ -353,6 +379,8 @@ public class MainMenuOverlay : MonoBehaviour
                 LogState("MainMenu: not active");
                 return false;
             }
+
+            ApplyNewsVisibility(mainMenu);
 
             var songSelect = IsOpen(mainMenu.songSelect);
             var settings = IsOpen(mainMenu.settingsMenu);
@@ -387,6 +415,42 @@ public class MainMenuOverlay : MonoBehaviour
         catch (Exception)
         {
             return false;
+        }
+    }
+
+    /// [Gameplay] HideNewsPanel: the game's news panel goes to opacity 0,
+    /// like the solo counter in GameplayTweaks. The object stays active
+    /// (the game still loads and animates it) and stops catching clicks.
+    /// Re-applied on every poll, so the setting takes effect right away.
+    private static void ApplyNewsVisibility(MainMenu mainMenu)
+    {
+        try
+        {
+            var news = mainMenu.news;
+            if (news == null)
+            {
+                return;
+            }
+
+            var hide = Plugin.HideNewsPanel.Value;
+            var group = news.gameObject.GetComponent<CanvasGroup>();
+            if (group == null)
+            {
+                if (!hide)
+                {
+                    return; // never hidden, nothing to restore
+                }
+
+                group = news.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            group.alpha = hide ? 0f : 1f;
+            group.blocksRaycasts = !hide;
+            group.interactable = !hide;
+        }
+        catch (Exception)
+        {
+            // Only loses the news tweak, not the menu detection.
         }
     }
 
@@ -473,6 +537,7 @@ public class MainMenuOverlay : MonoBehaviour
             BuildLevel(panel, font);
             _settingsButton.Build(_root, font);
             _quitButton.Build(canvasObject.transform, font);
+            _duelButton.Build(canvasObject.transform, font);
 
             Plugin.Logger.LogInfo("Player card: UI built.");
         }

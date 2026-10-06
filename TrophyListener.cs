@@ -397,8 +397,10 @@ public static class TrophyListener
             var showToast = IsForMe(username);
             if (showToast)
             {
-                // The player card's numbers just changed.
+                // The player card's numbers just changed, and maybe the
+                // duels waiting to be played.
                 MainMenuOverlay.RequestRefresh();
+                DuelWindow.RequestRefresh();
             }
 
             switch (GetString(root, "event"))

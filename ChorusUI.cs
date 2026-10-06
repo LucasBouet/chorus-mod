@@ -24,6 +24,27 @@ public class ChorusUI : MonoBehaviour
 {
     public ChorusUI(IntPtr ptr) : base(ptr) { }
 
+    internal static ChorusUI? Instance;
+
+    /// Opens the window (if needed) and searches for `query`: the duel
+    /// window's Find chart.
+    internal static void OpenSearch(string query)
+    {
+        var ui = Instance;
+        if (ui == null)
+        {
+            return;
+        }
+
+        ui._query = query;
+        if (!ui._open)
+        {
+            ui.Toggle();
+        }
+
+        ui.Search(1);
+    }
+
     private const float Pad = 16f;
     private const float BtnH = 28f;
     private const float ArtSize = 56f;
@@ -156,7 +177,7 @@ public class ChorusUI : MonoBehaviour
 
         // Not on top of the settings window: that's where the key is
         // rebound, and the window owns the keyboard.
-        if (Input.GetKeyDown(Plugin.ToggleKey.Value) && !SettingsWindow.IsOpen)
+        if (Input.GetKeyDown(Plugin.ToggleKey.Value) && !SettingsWindow.IsOpen && !DuelWindow.IsOpen)
         {
             Toggle();
         }

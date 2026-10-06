@@ -252,6 +252,23 @@ public class Toast : MonoBehaviour
             _built = true;
         }
 
+        // Streamer mode: nothing on screen. Toasts arriving meanwhile are
+        // dropped rather than piled up for later.
+        if (Plugin.StreamerMode.Value)
+        {
+            while (_queue.TryDequeue(out _))
+            {
+            }
+
+            if (_state != State.Idle)
+            {
+                SetAlpha(0f);
+                _state = State.Idle;
+            }
+
+            return;
+        }
+
         // Unscaled: a paused game (timeScale 0) mustn't freeze the toast.
         var dt = Time.unscaledDeltaTime;
 
