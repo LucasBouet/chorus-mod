@@ -177,7 +177,7 @@ public class ChorusUI : MonoBehaviour
 
         // Not on top of the settings window: that's where the key is
         // rebound, and the window owns the keyboard.
-        if (Input.GetKeyDown(Plugin.ToggleKey.Value) && !SettingsWindow.IsOpen && !DuelWindow.IsOpen)
+        if (Input.GetKeyDown(Plugin.ToggleKey.Value) && !SettingsWindow.IsOpen && !DuelWindow.IsOpen && !NotificationWindow.IsOpen)
         {
             Toggle();
         }

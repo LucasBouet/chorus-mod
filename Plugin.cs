@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.5.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.6.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
@@ -338,6 +338,7 @@ public class Plugin : BasePlugin
         MainMenuOverlay.Initialize();
         SettingsWindow.Initialize();
         DuelWindow.Initialize();
+        NotificationWindow.Initialize();
         GameplayTweaks.Initialize();
 
         TrophyListener.Start();

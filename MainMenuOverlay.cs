@@ -80,6 +80,7 @@ public class MainMenuOverlay : MonoBehaviour
     private readonly SettingsButton _settingsButton = new();
     private readonly QuitButton _quitButton = new();
     private readonly DuelButton _duelButton = new();
+    private readonly HistoryButton _historyButton = new();
     private string _avatarUrl = "";
     private bool _avatarApplied;
 
@@ -153,6 +154,7 @@ public class MainMenuOverlay : MonoBehaviour
         _settingsButton.Tick(visible && _shown >= 1f);
         _quitButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
         _duelButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
+        _historyButton.Tick(visible ? _shown : Mathf.Min(_shown, 0.999f));
     }
 
     private void MaybeFetch(string username)
@@ -538,6 +540,7 @@ public class MainMenuOverlay : MonoBehaviour
             _settingsButton.Build(_root, font);
             _quitButton.Build(canvasObject.transform, font);
             _duelButton.Build(canvasObject.transform, font);
+            _historyButton.Build(canvasObject.transform, font);
 
             Plugin.Logger.LogInfo("Player card: UI built.");
         }

@@ -31,7 +31,7 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.5"
+#define MyAppVersion "1.6"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
 ; ntfy topic the trophy site publishes to, pre-filled on the Trophies

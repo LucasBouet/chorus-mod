@@ -92,6 +92,7 @@ public class SettingsButton
         var hovered = interactive
             && !SettingsWindow.IsOpen
             && !DuelWindow.IsOpen
+            && !NotificationWindow.IsOpen
             && RectTransformUtility.RectangleContainsScreenPoint(_rect, Input.mousePosition, null);
         SetHover(hovered);
 

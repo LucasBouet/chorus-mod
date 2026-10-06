@@ -5,40 +5,43 @@ using UnityEngine.UI;
 namespace ChorusMod;
 
 /// <summary>
-/// DUELS button on the middle of the main menu's right edge, opening the
-/// DuelWindow. Shown and faded along with the player card. Crossed-swords
-/// icon from quads (no texture can be built on this build), and a badge
-/// with the number of challenges waiting to be played; the border pulses
-/// while there are some.
+/// NOTIFS button right under the DUELS button, opening the
+/// NotificationWindow. Bell icon from quads (no texture can be built on
+/// this build), and a badge with the number of notifications never seen
+/// (toast off or missed while streaming).
 ///
 /// Clicks are hit-tested by hand, like SettingsButton.
 /// </summary>
-public class DuelButton
+public class HistoryButton
 {
     private const float Width = 220f;
     private const float Height = 64f;
     private const float ScreenMargin = 36f;
+    private const float Gap = 12f;
     private const float BadgeSize = 28f;
 
-    private static readonly Color Accent = TrophyListener.ChallengeAccent;
+    // Top of this button: under the DUELS button, centered on the screen.
+    private const float DuelButtonHalfHeight = 32f;
+
+    private static readonly Color Accent = Toast.DefaultAccent;
     private static readonly Color HoverBackground = new(0.10f, 0.12f, 0.17f, 0.96f);
 
     private RectTransform? _rect;
     private CanvasGroup? _group;
     private Image? _background;
     private readonly Image[] _border = new Image[4];
-    private readonly Image[] _blades = new Image[2];
+    private readonly Image[] _bell = new Image[3];
     private TextMeshProUGUI? _label;
     private RectTransform? _badge;
     private TextMeshProUGUI? _badgeText;
 
     public void Build(Transform canvas, TMP_FontAsset? font)
     {
-        _rect = UiKit.NewRect("DuelButton", canvas);
+        _rect = UiKit.NewRect("HistoryButton", canvas);
         _rect.anchorMin = new Vector2(1f, 0.5f);
         _rect.anchorMax = new Vector2(1f, 0.5f);
-        _rect.pivot = new Vector2(1f, 0.5f);
-        _rect.anchoredPosition = new Vector2(-ScreenMargin, 0f);
+        _rect.pivot = new Vector2(1f, 1f);
+        _rect.anchoredPosition = new Vector2(-ScreenMargin, -DuelButtonHalfHeight - Gap);
         _rect.sizeDelta = new Vector2(Width, Height);
 
         _group = _rect.gameObject.AddComponent<CanvasGroup>();
@@ -58,41 +61,22 @@ public class DuelButton
         _border[3] = UiKit.Quad(_rect, "BorderRight", Color.clear);
         UiKit.Place(_border[3].rectTransform, new Vector2(1f, 0f), Vector2.one, new Vector2(-1f, 0f), Vector2.zero);
 
-        // Crossed swords: two blades at ±45°, each with a short guard.
+        // Bell: dome, wider rim, clapper below.
         var icon = UiKit.NewRect("Icon", _rect);
         icon.anchorMin = new Vector2(0f, 0.5f);
         icon.anchorMax = new Vector2(0f, 0.5f);
         icon.anchoredPosition = new Vector2(40f, 0f);
         icon.sizeDelta = new Vector2(32f, 32f);
-        for (var i = 0; i < _blades.Length; i++)
-        {
-            var sword = UiKit.NewRect($"Sword{i}", icon);
-            sword.anchorMin = new Vector2(0.5f, 0.5f);
-            sword.anchorMax = new Vector2(0.5f, 0.5f);
-            sword.anchoredPosition = Vector2.zero;
-            sword.sizeDelta = new Vector2(32f, 32f);
-            sword.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 45f : -45f);
-
-            _blades[i] = UiKit.Quad(sword, "Blade", Color.white);
-            var blade = _blades[i].rectTransform;
-            blade.anchorMin = new Vector2(0.5f, 0.5f);
-            blade.anchorMax = new Vector2(0.5f, 0.5f);
-            blade.anchoredPosition = new Vector2(0f, 3f);
-            blade.sizeDelta = new Vector2(3f, 30f);
-
-            var guard = UiKit.Quad(sword, "Guard", Accent).rectTransform;
-            guard.anchorMin = new Vector2(0.5f, 0.5f);
-            guard.anchorMax = new Vector2(0.5f, 0.5f);
-            guard.anchoredPosition = new Vector2(0f, -8f);
-            guard.sizeDelta = new Vector2(12f, 3f);
-        }
+        _bell[0] = BellPart(icon, "Dome", new Vector2(0f, 4f), new Vector2(16f, 18f));
+        _bell[1] = BellPart(icon, "Rim", new Vector2(0f, -7f), new Vector2(28f, 4f));
+        _bell[2] = BellPart(icon, "Clapper", new Vector2(0f, -12f), new Vector2(7f, 4f));
 
         _label = UiKit.Text(_rect, "Label", font, 19f, FontStyles.Bold, UiKit.MutedText);
-        _label.text = "DUELS";
+        _label.text = "NOTIFS";
         _label.characterSpacing = 6f;
         UiKit.Place(_label.rectTransform, Vector2.zero, Vector2.one, new Vector2(74f, 0f), new Vector2(-8f, 0f));
 
-        // Pending-challenges badge on the top-left corner.
+        // Unseen badge on the top-left corner.
         _badge = UiKit.NewRect("Badge", _rect);
         _badge.anchorMin = new Vector2(0f, 1f);
         _badge.anchorMax = new Vector2(0f, 1f);
@@ -108,6 +92,17 @@ public class DuelButton
         SetLook(false, 0);
     }
 
+    private static Image BellPart(RectTransform icon, string name, Vector2 position, Vector2 size)
+    {
+        var part = UiKit.Quad(icon, name, Color.white);
+        var rect = part.rectTransform;
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        return part;
+    }
+
     /// Call every frame. `shown` = the card's fade (0-1); clickable only
     /// once fully shown.
     public void Tick(float shown)
@@ -118,10 +113,6 @@ public class DuelButton
         }
 
         _group.alpha = shown;
-        if (shown > 0f)
-        {
-            DuelWindow.KeepBadgeFresh();
-        }
 
         var interactive = shown >= 1f && !SettingsWindow.IsOpen && !DuelWindow.IsOpen && !NotificationWindow.IsOpen;
         var hovered = interactive
@@ -129,13 +120,13 @@ public class DuelButton
 
         if (hovered && Input.GetMouseButtonDown(0))
         {
-            DuelWindow.Open();
+            NotificationWindow.Open();
         }
 
-        SetLook(hovered, DuelWindow.PendingCount);
+        SetLook(hovered, shown > 0f ? NotificationHistory.Unseen : 0);
     }
 
-    private void SetLook(bool hovered, int pending)
+    private void SetLook(bool hovered, int unseen)
     {
         if (_background == null || _label == null || _badge == null || _badgeText == null)
         {
@@ -144,21 +135,19 @@ public class DuelButton
 
         _background.color = hovered ? HoverBackground : UiKit.PanelColor;
         _label.color = hovered ? Color.white : UiKit.MutedText;
-        foreach (var blade in _blades)
+        foreach (var part in _bell)
         {
-            blade.color = hovered ? Color.white : UiKit.MutedText;
+            part.color = hovered ? Color.white : UiKit.MutedText;
         }
 
-        // Pulses while challenges are waiting.
-        var pulse = pending > 0 ? 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f) : 0f;
-        var alpha = hovered ? 0.9f : pending > 0 ? 0.35f + 0.5f * Mathf.Abs(pulse) : 0.25f;
+        var alpha = hovered ? 0.9f : unseen > 0 ? 0.55f : 0.25f;
         for (var i = 0; i < _border.Length; i++)
         {
             // The left edge is a thick accent stripe.
             _border[i].color = UiKit.WithAlpha(Accent, i == 2 ? Mathf.Max(alpha, 0.8f) : alpha);
         }
 
-        var showBadge = pending > 0;
+        var showBadge = unseen > 0;
         if (_badge.gameObject.activeSelf != showBadge)
         {
             _badge.gameObject.SetActive(showBadge);
@@ -166,7 +155,7 @@ public class DuelButton
 
         if (showBadge)
         {
-            _badgeText.text = pending > 9 ? "9+" : pending.ToString();
+            _badgeText.text = unseen > 9 ? "9+" : unseen.ToString();
         }
     }
 }
