@@ -95,7 +95,7 @@ public class QuitButton
         }
 
         _group.alpha = shown;
-        var interactive = shown >= 1f && !SettingsWindow.IsOpen && !DuelWindow.IsOpen;
+        var interactive = shown >= 1f && !SettingsWindow.IsOpen && !DuelWindow.IsOpen && !NotificationWindow.IsOpen;
         if (!interactive)
         {
             _armedUntil = float.NegativeInfinity;

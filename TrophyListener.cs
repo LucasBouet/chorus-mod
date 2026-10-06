@@ -349,7 +349,7 @@ public static class TrophyListener
                         return;
                     }
 
-                    LogSiteEvent(GetString(root, "message"));
+                    LogSiteEvent(GetString(root, "message"), id, _lastEventTime);
                     break;
 
                 // message_delete, message_clear, poll_request: irrelevant here.
@@ -362,7 +362,9 @@ public static class TrophyListener
     }
 
     /// Parses the site's own JSON, carried in ntfy's "message" field.
-    private static void LogSiteEvent(string message)
+    /// The player's notifications go to the history (and get a toast if
+    /// that kind is turned on); `id` and `time` are ntfy's.
+    private static void LogSiteEvent(string message, string id, long time)
     {
         JsonDocument doc;
         try
@@ -394,8 +396,34 @@ public static class TrophyListener
             }
 
             var user = $"{username} (#{GetString(root, "user_id")})";
-            var showToast = IsForMe(username);
-            if (showToast)
+            var forMe = IsForMe(username);
+
+            // Into the history if it's the player's, on screen too if that
+            // kind of toast is on.
+            void Notify(bool toast, string kind, string label, string title, string text, float seconds, string titleBefore = "")
+            {
+                if (!forMe)
+                {
+                    return;
+                }
+
+                NotificationHistory.Add(
+                    new Notification
+                    {
+                        Id = id,
+                        Time = time,
+                        Kind = kind,
+                        Label = label,
+                        Title = title,
+                        TitleBefore = titleBefore,
+                        Message = text,
+                        Seconds = seconds,
+                    },
+                    toast
+                );
+            }
+
+            if (forMe)
             {
                 // The player card's numbers just changed, and maybe the
                 // duels waiting to be played.
@@ -414,16 +442,14 @@ public static class TrophyListener
                     );
                     // No icon: the game's TMP font has no emoji glyphs,
                     // it would render as a missing-character box.
-                    if (showToast && Plugin.ToastTrophies.Value)
-                    {
-                        Toast.Show(
-                            GetString(payload, "name"),
-                            GetString(payload, "description"),
-                            ToastSeconds,
-                            TrophyAccent,
-                            "Trophy unlocked"
-                        );
-                    }
+                    Notify(
+                        Plugin.ToastTrophies.Value,
+                        NotificationHistory.Trophy,
+                        "Trophy unlocked",
+                        GetString(payload, "name"),
+                        GetString(payload, "description"),
+                        ToastSeconds
+                    );
                     break;
 
                 case "record_beaten":
@@ -434,19 +460,17 @@ public static class TrophyListener
                             + $"{GetString(payload, "previous_score")} -> {GetString(payload, "new_score")}, "
                             + $"new holder: {GetString(payload, "new_holder_name")}"
                     );
-                    if (showToast && Plugin.ToastRecords.Value)
-                    {
-                        Toast.Show(
-                            GetString(payload, "song"),
-                            $"{GetString(payload, "artist")} · "
-                                + $"{GetString(payload, "instrument")} {GetString(payload, "difficulty")} · "
-                                + $"{FormatScore(GetString(payload, "new_score"))} by "
-                                + GetString(payload, "new_holder_name"),
-                            ToastSeconds,
-                            RecordAccent,
-                            "Record beaten"
-                        );
-                    }
+                    Notify(
+                        Plugin.ToastRecords.Value,
+                        NotificationHistory.Record,
+                        "Record beaten",
+                        GetString(payload, "song"),
+                        $"{GetString(payload, "artist")} · "
+                            + $"{GetString(payload, "instrument")} {GetString(payload, "difficulty")} · "
+                            + $"{FormatScore(GetString(payload, "new_score"))} by "
+                            + GetString(payload, "new_holder_name"),
+                        ToastSeconds
+                    );
                     break;
 
                 case "level_up":
@@ -454,17 +478,15 @@ public static class TrophyListener
                         $"[Level] {user}: level {GetString(payload, "old_level")} -> "
                             + $"{GetString(payload, "new_level")} ({GetString(payload, "points")} points)"
                     );
-                    if (showToast && Plugin.ToastLevels.Value)
-                    {
-                        Toast.ShowRankUp(
-                            $"Level {GetString(payload, "old_level")}",
-                            $"Level {GetString(payload, "new_level")}",
-                            $"{FormatScore(GetString(payload, "points"))} points",
-                            ToastSeconds,
-                            LevelAccent,
-                            "Level up"
-                        );
-                    }
+                    Notify(
+                        Plugin.ToastLevels.Value,
+                        NotificationHistory.Level,
+                        "Level up",
+                        $"Level {GetString(payload, "new_level")}",
+                        $"{FormatScore(GetString(payload, "points"))} points",
+                        ToastSeconds,
+                        $"Level {GetString(payload, "old_level")}"
+                    );
                     break;
 
                 case "global_notification":
@@ -472,16 +494,15 @@ public static class TrophyListener
                     Plugin.Logger.LogInfo(
                         $"[Announcement] {GetString(payload, "subject")}: {GetString(payload, "text")}"
                     );
-                    if (Plugin.ToastAnnouncements.Value)
-                    {
-                        Toast.Show(
-                            GetString(payload, "subject"),
-                            GetString(payload, "text"),
-                            AnnouncementSeconds,
-                            AnnouncementAccent,
-                            "Announcement"
-                        );
-                    }
+                    forMe = true;
+                    Notify(
+                        Plugin.ToastAnnouncements.Value,
+                        NotificationHistory.Announcement,
+                        "Announcement",
+                        GetString(payload, "subject"),
+                        GetString(payload, "text"),
+                        AnnouncementSeconds
+                    );
                     break;
 
                 case "challenge_won":
@@ -497,29 +518,28 @@ public static class TrophyListener
                             + $"({GetString(payload, "instrument")} {GetString(payload, "difficulty")}), "
                             + $"{mine} vs {theirs} (challenge #{GetString(payload, "challenge_id")})"
                     );
-                    if (showToast && Plugin.ToastDuelResults.Value)
+                    if (won)
                     {
-                        if (won)
-                        {
-                            Toast.ShowRankUp(
-                                $"Duel vs {opponent}",
-                                "Victory !",
-                                DuelResultMessage(song, mine, theirs),
-                                ToastSeconds + 1f,
-                                DuelWonAccent,
-                                "Duel won"
-                            );
-                        }
-                        else
-                        {
-                            Toast.Show(
-                                "Defeat",
-                                $"{opponent} beat you · {DuelResultMessage(song, mine, theirs)}",
-                                ToastSeconds + 1f,
-                                DuelLostAccent,
-                                "Duel lost"
-                            );
-                        }
+                        Notify(
+                            Plugin.ToastDuelResults.Value,
+                            NotificationHistory.DuelWon,
+                            "Duel won",
+                            "Victory !",
+                            DuelResultMessage(song, mine, theirs),
+                            ToastSeconds + 1f,
+                            $"Duel vs {opponent}"
+                        );
+                    }
+                    else
+                    {
+                        Notify(
+                            Plugin.ToastDuelResults.Value,
+                            NotificationHistory.DuelLost,
+                            "Duel lost",
+                            "Defeat",
+                            $"{opponent} beat you · {DuelResultMessage(song, mine, theirs)}",
+                            ToastSeconds + 1f
+                        );
                     }
                     break;
                 }
@@ -532,21 +552,19 @@ public static class TrophyListener
                             + $"{GetString(payload, "instrument")} {GetString(payload, "difficulty")}), "
                             + $"score to beat {GetString(payload, "score_to_beat")}"
                     );
-                    if (showToast && Plugin.ToastChallenges.Value)
-                    {
-                        Toast.ShowClash(
-                            GetString(payload, "song"),
-                            ChallengeMessage(
-                                GetString(payload, "challenger_name"),
-                                GetString(payload, "instrument"),
-                                GetString(payload, "difficulty"),
-                                GetString(payload, "score_to_beat")
-                            ),
-                            ToastSeconds + 1f,
-                            ChallengeAccent,
-                            "Duel challenge"
-                        );
-                    }
+                    Notify(
+                        Plugin.ToastChallenges.Value,
+                        NotificationHistory.Challenge,
+                        "Duel challenge",
+                        GetString(payload, "song"),
+                        ChallengeMessage(
+                            GetString(payload, "challenger_name"),
+                            GetString(payload, "instrument"),
+                            GetString(payload, "difficulty"),
+                            GetString(payload, "score_to_beat")
+                        ),
+                        ToastSeconds + 1f
+                    );
                     break;
 
                 default:

@@ -362,6 +362,17 @@ a badge on it counts the challenges you still have to play. Three tabs:
   *Rematch* goes back to New challenge with the same player and chart.
 - **Sent**: your challenges, waiting or decided.
 
+The **NOTIFS** button, under DUELS, opens the history of the trophy
+site's notifications: every one meant for you, toasted or not (that
+toast type turned off, streamer mode, game closed and caught up later).
+A badge counts the ones you never saw. Search, filter by kind or show
+only the *Missed* ones; clicking a row shows its toast again. The
+history is kept in `BepInEx/config/chorus-mod-notifications.json` (last
+300).
+
+Clicking a toast dismisses it right away instead of waiting for it to
+time out.
+
 The SETTINGS button under the card (mouse) opens the settings window
 (see [Configuration](#configuration)); its first page turns each kind
 of toast on or off and previews it. Choices are saved in

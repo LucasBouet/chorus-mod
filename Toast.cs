@@ -11,7 +11,7 @@ namespace ChorusMod;
 /// Custom toast notification -- small accent-colored label, big title,
 /// smaller message. Slides in with a glow, holds while a progress bar
 /// drains, slides out. Queues multiple requests and shows them one at a
-/// time.
+/// time. A click on a toast dismisses it right away.
 ///
 /// Built after confirming (through hands-on debug testing) that the
 /// game's own FadeCanvas/CanvasFader can't be reused safely: FadeCanvas's
@@ -52,6 +52,9 @@ public class Toast : MonoBehaviour
         // Duel only: two blades slam together over the badge, the panel
         // shakes and a shockwave + spark burst goes off on impact.
         public bool Clash;
+
+        // NotificationHistory entry to mark as seen once on screen.
+        public string? HistoryId;
     }
 
     private enum State
@@ -158,7 +161,8 @@ public class Toast : MonoBehaviour
         string message,
         float durationSeconds = DefaultDurationSeconds,
         Color? accent = null,
-        string label = "Chorus Mod"
+        string label = "Chorus Mod",
+        string? historyId = null
     )
     {
         if (_instance == null)
@@ -175,6 +179,7 @@ public class Toast : MonoBehaviour
                 Message = message,
                 DurationSeconds = durationSeconds,
                 Accent = accent ?? DefaultAccent,
+                HistoryId = historyId,
             }
         );
     }
@@ -187,7 +192,8 @@ public class Toast : MonoBehaviour
         string message,
         float durationSeconds,
         Color accent,
-        string label
+        string label,
+        string? historyId = null
     )
     {
         if (_instance == null)
@@ -206,6 +212,7 @@ public class Toast : MonoBehaviour
                 DurationSeconds = durationSeconds,
                 Accent = accent,
                 RankUp = true,
+                HistoryId = historyId,
             }
         );
     }
@@ -217,7 +224,8 @@ public class Toast : MonoBehaviour
         string message,
         float durationSeconds,
         Color accent,
-        string label
+        string label,
+        string? historyId = null
     )
     {
         if (_instance == null)
@@ -235,6 +243,7 @@ public class Toast : MonoBehaviour
                 DurationSeconds = durationSeconds,
                 Accent = accent,
                 Clash = true,
+                HistoryId = historyId,
             }
         );
     }
@@ -271,6 +280,14 @@ public class Toast : MonoBehaviour
 
         // Unscaled: a paused game (timeScale 0) mustn't freeze the toast.
         var dt = Time.unscaledDeltaTime;
+
+        if (ClickedAway())
+        {
+            // Fade out from wherever the fade-in got to.
+            var alpha = _canvasGroup != null ? _canvasGroup.alpha : 1f;
+            _timer = (1f - alpha) * OutSeconds;
+            _state = State.FadingOut;
+        }
 
         switch (_state)
         {
@@ -343,6 +360,16 @@ public class Toast : MonoBehaviour
         }
     }
 
+    /// A left click on the toast while it's coming in or holding: it
+    /// leaves right away instead of waiting out its time.
+    private bool ClickedAway()
+    {
+        return (_state == State.FadingIn || _state == State.Holding)
+            && _root != null
+            && Input.GetMouseButtonDown(0)
+            && RectTransformUtility.RectangleContainsScreenPoint(_root, Input.mousePosition, null);
+    }
+
     private void SetAlpha(float value)
     {
         if (_canvasGroup != null)
@@ -400,6 +427,11 @@ public class Toast : MonoBehaviour
             var color = request.Accent;
             color.a = part.Alpha;
             part.Image.color = color;
+        }
+
+        if (request.HistoryId != null)
+        {
+            NotificationHistory.MarkToasted(request.HistoryId);
         }
 
         _currentDuration = request.DurationSeconds;
