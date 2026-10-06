@@ -354,7 +354,10 @@ a badge on it counts the challenges you still have to play. Three tabs:
   challenges per 24 hours (the count left is shown at the top).
   Keyboard: Tab switches list, Up / Down picks, Enter moves on.
 - **Received**: challenges to play first, then the finished ones (won /
-  lost, both scores). *Find chart* opens the search window on the song;
+  lost, both scores). *Select* (chart installed) closes the window: open Quickplay
+  and the song list jumps to the chart; a toast recalls the
+  instrument, difficulty, speed and modifiers to pick. *Find chart*
+  (not installed) opens the search window on the song;
   *Rematch* goes back to New challenge with the same player and chart.
 - **Sent**: your challenges, waiting or decided.
 

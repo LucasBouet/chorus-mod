@@ -125,6 +125,7 @@ public class MainMenuOverlay : MonoBehaviour
         // Shown even with no username: the SETTINGS button under it is
         // where the name gets set.
         HandleStreamerKey();
+        ChartSelector.Tick();
 
         var username = Plugin.TrophyUsername.Value.Trim();
         var visible = _onMainMenu && !Plugin.StreamerMode.Value;

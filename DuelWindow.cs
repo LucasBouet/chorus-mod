@@ -98,6 +98,7 @@ public class DuelWindow : MonoBehaviour
     private int _remaining = -1;
     private int _limit = -1;
     private string[] _instruments = Array.Empty<string>(); // present in _scores, most used first
+    private HashSet<string> _installed = new(); // checksums of open received duels found in the library
 
     // --- New challenge ---
     private string _playerQuery = "";
@@ -300,6 +301,7 @@ public class DuelWindow : MonoBehaviour
         {
             _received = received;
             PendingCount = received.Count(IsOpenDuel);
+            _installed = ChartSelector.FindInstalled(received.Where(IsOpenDuel).Select(d => d.Checksum));
         });
         Load(me, () => ChallengeApi.GetChallengesAsync(me, true), sent => _sent = sent);
     }
@@ -774,6 +776,27 @@ public class DuelWindow : MonoBehaviour
         {
             SetStatus("You have no score on that exact chart yet: play it first, or pick another one.", Theme.Orange);
         }
+    }
+
+    /// Closes the window; the chart gets selected once the player opens
+    /// the song list (see ChartSelector).
+    private void SelectChart(Duel duel)
+    {
+        if (!ChartSelector.Request(duel.Checksum, $"{duel.Artist} - {duel.Song}"))
+        {
+            _installed.Remove(duel.Checksum);
+            SetStatus("That chart isn't in your library anymore: use Find chart.", Theme.Orange);
+            return;
+        }
+
+        SetOpen(false);
+        Toast.Show(
+            "Open Quickplay",
+            $"{duel.Song} will be selected · play it on {Chart(duel.Instrument, duel.Difficulty, duel.Speed, duel.Modifiers)}",
+            9f,
+            Accent,
+            "Duel"
+        );
     }
 
     private void FindChart(Duel duel)
@@ -1294,7 +1317,18 @@ public class DuelWindow : MonoBehaviour
         var button = new Rect(row.xMax - buttonW - 12f, row.y + (row.height - 28f) * 0.5f, buttonW, 28f);
         if (!sent && open)
         {
-            if (GUI.Button(button, "Find chart"))
+            if (_installed.Contains(duel.Checksum))
+            {
+                var pill = Accent;
+                pill.a = Hovered(button) ? 1f : 0.8f;
+                Theme.Fill(new Rect(button.x - 2f, button.y - 2f, button.width + 4f, button.height + 4f), pill, 1);
+                if (GUI.Button(button, "Select"))
+                {
+                    SelectChart(duel);
+                    return;
+                }
+            }
+            else if (GUI.Button(button, "Find chart"))
             {
                 FindChart(duel);
                 return;
