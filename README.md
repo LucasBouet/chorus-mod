@@ -328,6 +328,7 @@ name reloads the player card.
 | `Username` | auto-detected | Your trophy-site username: only your events get a toast. Read from `discordName` in `%APPDATA%\Rythmania Tracker\player.json` when empty. Empty = toast everyone's events. |
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 | `ChallengeApiUrl` | trophy site `challenge_api.php` | Duel endpoint, used by the DUELS window. |
+| `DuelKey` | `F8` | Key to open/close the DUELS window from anywhere (`None` = no key). |
 
 Events (`trophy_unlocked`, `record_beaten`, `level_up`,
 `challenge_received`, `challenge_won`, `challenge_lost`,
@@ -344,7 +345,8 @@ On the main menu only, a player card (top left) shows the `Username`'s
 avatar, trophy count, full combos, best score and latest trophy. With
 no `Username` set, it says so and the SETTINGS button stays reachable.
 
-The **DUELS** button (middle of the right edge) opens the duel window;
+The **DUELS** button (middle of the right edge), or `F8` from anywhere
+(`DuelKey`), opens the duel window;
 a badge on it counts the challenges you still have to play. Three tabs:
 
 - **New challenge**: pick an opponent on the left (searchable) and one
@@ -357,8 +359,12 @@ a badge on it counts the challenges you still have to play. Three tabs:
   lost, both scores). *Select* (chart installed) closes the window, opens Quickplay
   and jumps the song list to the chart (if opening Quickplay fails on
   your game build, open it yourself: the chart still gets selected); a toast recalls the
-  instrument, difficulty, speed and modifiers to pick. *Find chart*
-  (not installed) opens the search window on the song;
+  instrument, difficulty, speed and modifiers to pick. When the chart
+  isn't installed, *Download* gets it from Chorus: it searches by title
+  and artist (the challenge's charter first), downloads candidates and
+  keeps only the one whose notes file has the challenge's exact checksum,
+  installs it, rescans and then selects it like *Select*. *Find chart*
+  opens the search window on the song instead;
   *Rematch* goes back to New challenge with the same player and chart.
 - **Sent**: your challenges, waiting or decided.
 

@@ -434,6 +434,13 @@ public class SettingsWindow : MonoBehaviour
             Warning = UrlWarning,
             Changed = DuelWindow.RequestRefresh,
         },
+        new Setting
+        {
+            Kind = Kind.Key,
+            Key = Plugin.DuelKey,
+            Title = "Duels key",
+            Description = "Opens / closes the DUELS window from anywhere in the game.",
+        },
     };
 
     private static Setting[] SearchWindowSettings() => new[]

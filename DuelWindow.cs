@@ -159,6 +159,14 @@ public class DuelWindow : MonoBehaviour
         }
     }
 
+    public static void Close()
+    {
+        if (_instance != null && _instance._open)
+        {
+            _instance.SetOpen(false);
+        }
+    }
+
     /// Thread-safe: TrophyListener calls it when one of the player's duel
     /// events arrives.
     public static void RequestRefresh() => _refreshRequested = true;
@@ -188,6 +196,14 @@ public class DuelWindow : MonoBehaviour
             {
                 Plugin.Logger.LogError($"Duels: deferred action failed: {e}");
             }
+        }
+
+        // Not on top of another window: each one owns the keyboard.
+        var key = Plugin.DuelKey.Value;
+        if (key != KeyCode.None && Input.GetKeyDown(key)
+            && !SettingsWindow.IsOpen && !NotificationWindow.IsOpen && !ChorusUI.IsOpen)
+        {
+            SetOpen(!_open);
         }
 
         var me = Me();
@@ -490,6 +506,12 @@ public class DuelWindow : MonoBehaviour
         var e = Event.current;
         if (e == null || e.type != EventType.KeyDown)
         {
+            return;
+        }
+
+        if (e.keyCode != KeyCode.None && e.keyCode == Plugin.DuelKey.Value)
+        {
+            Consume(e); // handled in Update()
             return;
         }
 
@@ -797,6 +819,28 @@ public class DuelWindow : MonoBehaviour
             Accent,
             "Duel"
         );
+    }
+
+    /// Gets the chart from Chorus; once it's installed and scanned, it's
+    /// selected like Select does (see ChallengeDownloader).
+    private void DownloadChart(Duel duel)
+    {
+        if (ChallengeDownloader.Start(duel))
+        {
+            SetStatus($"Getting {duel.Song} from Chorus: it'll be selected once installed. You can close this window.", Theme.TextDim);
+        }
+    }
+
+    /// Filled accent button; greyed out and inert when not `enabled`.
+    private static bool AccentButton(Rect rect, string label, bool enabled)
+    {
+        var pill = Accent;
+        pill.a = !enabled ? 0.25f : Hovered(rect) ? 1f : 0.8f;
+        Theme.Fill(new Rect(rect.x - 2f, rect.y - 2f, rect.width + 4f, rect.height + 4f), pill, 1);
+        GUI.enabled = enabled;
+        var clicked = GUI.Button(rect, label);
+        GUI.enabled = true;
+        return clicked && enabled;
     }
 
     private void FindChart(Duel duel)
@@ -1312,26 +1356,38 @@ public class DuelWindow : MonoBehaviour
         Theme.Fill(row, index % 2 == 0 ? Theme.RowEven : Theme.RowOdd, 1);
         Theme.Fill(new Rect(row.x, row.y, 4f, row.height), color, 1);
 
-        // Right: action button, then state and scores.
-        const float buttonW = 110f;
+        // Right: action buttons, then state and scores.
+        const float buttonW = 130f;
         var button = new Rect(row.xMax - buttonW - 12f, row.y + (row.height - 28f) * 0.5f, buttonW, 28f);
+        var leftmost = button.x;
         if (!sent && open)
         {
             if (_installed.Contains(duel.Checksum))
             {
-                var pill = Accent;
-                pill.a = Hovered(button) ? 1f : 0.8f;
-                Theme.Fill(new Rect(button.x - 2f, button.y - 2f, button.width + 4f, button.height + 4f), pill, 1);
-                if (GUI.Button(button, "Select"))
+                if (AccentButton(button, "Select", true))
                 {
                     SelectChart(duel);
                     return;
                 }
             }
-            else if (GUI.Button(button, "Find chart"))
+            else
             {
-                FindChart(duel);
-                return;
+                // Not in the library: fetched from Chorus, or searched by hand.
+                var fetching = string.Equals(ChallengeDownloader.Current, duel.Checksum, StringComparison.OrdinalIgnoreCase);
+                var label = fetching ? ChallengeDownloader.Progress : "Download";
+                if (AccentButton(button, label, !ChallengeDownloader.Busy))
+                {
+                    DownloadChart(duel);
+                    return;
+                }
+
+                var find = new Rect(button.x - 96f, button.y, 90f, button.height);
+                leftmost = find.x;
+                if (GUI.Button(find, "Find chart"))
+                {
+                    FindChart(duel);
+                    return;
+                }
             }
         }
         else if (duel.Completed)
@@ -1344,7 +1400,7 @@ public class DuelWindow : MonoBehaviour
         }
 
         const float stateW = 250f;
-        var stateX = button.x - stateW - 14f;
+        var stateX = leftmost - stateW - 14f;
         var mine = sent ? duel.ScoreToBeat : duel.ChallengedScore;
         var theirs = sent ? duel.ChallengedScore : duel.ScoreToBeat;
         string state;
@@ -1435,7 +1491,7 @@ public class DuelWindow : MonoBehaviour
     private static string Charted(string charter) => charter.Length > 0 ? $"charted by {charter}" : "";
 
     /// "Guitar Expert · 150% · DoubleKick"
-    private static string Chart(string instrument, string difficulty, int speed, string modifiers)
+    internal static string Chart(string instrument, string difficulty, int speed, string modifiers)
     {
         var text = $"{instrument} {difficulty}".Trim();
         if (speed > 0 && speed != 100)

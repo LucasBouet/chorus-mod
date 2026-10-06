@@ -77,6 +77,9 @@ public static class ChartSelector
         return found;
     }
 
+    /// Whether the chart is in the game's library.
+    public static bool IsInstalled(string checksum) => Find(checksum) != null;
+
     /// Queues the chart: selected as soon as the song list is open.
     /// False if it isn't installed.
     public static bool Request(string checksum, string label)

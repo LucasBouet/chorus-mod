@@ -26,6 +26,8 @@ public class ChorusUI : MonoBehaviour
 
     internal static ChorusUI? Instance;
 
+    internal static bool IsOpen => Instance != null && Instance._open;
+
     /// Opens the window (if needed) and searches for `query`: the duel
     /// window's Find chart.
     internal static void OpenSearch(string query)

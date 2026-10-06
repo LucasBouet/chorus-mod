@@ -176,6 +176,29 @@ public static class SongInstaller
         return true;
     }
 
+    private static SongScan? _scanner;
+
+    /// Whether the game is scanning its library right now. Looked up once
+    /// and kept, quietly: this is polled.
+    public static bool IsScanning()
+    {
+        try
+        {
+            if (_scanner == null)
+            {
+                var all = Resources.FindObjectsOfTypeAll<SongScan>();
+                _scanner = all != null && all.Length > 0 ? all[0] : null;
+            }
+
+            return _scanner != null && _scanner.isScanning;
+        }
+        catch (Exception)
+        {
+            _scanner = null;
+            return false;
+        }
+    }
+
     /// Object.FindObjectOfType ignores disabled GameObjects, and SongScan
     /// lives on the scan overlay which is hidden most of the time.
     /// Resources.FindObjectsOfTypeAll, on the other hand, sees those too.
