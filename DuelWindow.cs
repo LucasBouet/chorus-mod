@@ -791,7 +791,7 @@ public class DuelWindow : MonoBehaviour
 
         SetOpen(false);
         Toast.Show(
-            "Open Quickplay",
+            ChartSelector.OpensQuickplay ? "Opening Quickplay" : "Open Quickplay",
             $"{duel.Song} will be selected · play it on {Chart(duel.Instrument, duel.Difficulty, duel.Speed, duel.Modifiers)}",
             9f,
             Accent,

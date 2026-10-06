@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace ChorusMod;
@@ -25,9 +26,10 @@ namespace ChorusMod;
 /// names that differ between game builds, so they're found by reflection
 /// (by their types, not their names): the library is the biggest static
 /// List<SongEntry> of the cache class, and "go to this song" is SongSelect's
-/// only void method taking a SongEntry (property setters aside) -- when a
-/// build has several, nothing is guessed: a toast says to pick the chart
-/// by hand. Everything is in try/catch and
+/// only void method taking a SongEntry (property setters aside); when a
+/// build has several, the one whose compiled code does "index of the
+/// song, then go there" is used. If none fits, a toast says to pick the
+/// chart by hand. Everything is in try/catch and
 /// logged, so a game update only loses the feature.
 /// </summary>
 public static class ChartSelector
@@ -38,6 +40,7 @@ public static class ChartSelector
 
     private static string? _pending;          // checksum, upper case
     private static string _pendingLabel = "";
+    private static float _openQuickplayAt = -1f; // >= 0: open Quickplay from the main menu then
     private static float _pendingUntil;
     private static float _songSelectSince = -1f;
 
@@ -87,9 +90,13 @@ public static class ChartSelector
         _pendingLabel = label;
         _pendingUntil = Time.unscaledTime + WaitSeconds;
         _songSelectSince = -1f;
+        _openQuickplayAt = QuickplayOpener.Supported ? Time.unscaledTime + 0.25f : -1f;
         Plugin.Logger.LogInfo($"Chart select: waiting for the song list to select {label} ({_pending}).");
         return true;
     }
+
+    /// Whether Request also opens Quickplay (else the player does).
+    public static bool OpensQuickplay => QuickplayOpener.Supported;
 
     /// Called every frame (from MainMenuOverlay, which runs all session).
     public static void Tick()
@@ -97,6 +104,17 @@ public static class ChartSelector
         if (_pending == null)
         {
             return;
+        }
+
+        // Opened a moment after the request: the duel window has let go
+        // of the keyboard by then.
+        if (_openQuickplayAt >= 0f && Time.unscaledTime >= _openQuickplayAt)
+        {
+            _openQuickplayAt = -1f;
+            if (!QuickplayOpener.TryOpen())
+            {
+                Toast.Show("Open Quickplay", $"{_pendingLabel} will be selected there.", 7f, TrophyListener.ChallengeAccent, "Duel");
+            }
         }
 
         if (Time.unscaledTime > _pendingUntil)
@@ -239,8 +257,85 @@ public static class ChartSelector
             })
             .ToArray();
         Plugin.Logger.LogInfo($"Chart select: SongSelect methods taking a song: {string.Join(", ", candidates.Select(m => m.Name))}.");
-        _jump = candidates.Length == 1 ? candidates[0] : null;
+        if (candidates.Length == 1)
+        {
+            _jump = candidates[0];
+            return _jump;
+        }
+
+        // Several (game 1.1.0.5675 has three): pick by their machine code,
+        // not their names. "Go to this song" is a short method that gets
+        // the song's index, then calls a SongSelect virtual with
+        // (index, true); a look-alike passes false instead.
+        foreach (var candidate in candidates)
+        {
+            var code = NativeCode(candidate, 160);
+            var match = code != null && Contains(code, GoToSongTail) && Contains(code, VirtualJump);
+            Plugin.Logger.LogInfo($"Chart select: {candidate.Name} {(code == null ? "unreadable" : match ? "matches" : "doesn't match")} \"go to song\".");
+            if (match && _jump == null)
+            {
+                _jump = candidate;
+            }
+        }
+
         return _jump;
+    }
+
+    // mov r8b, 1 ; mov edx, eax ; mov rcx, rbx  -> virtual(this, index, true)
+    private static readonly byte[] GoToSongTail = { 0x41, 0xB0, 0x01, 0x8B, 0xD0, 0x48, 0x8B, 0xCB };
+
+    // jmp qword ptr [r10 + disp32]: tail call through the vtable
+    private static readonly byte[] VirtualJump = { 0x49, 0xFF, 0xA2 };
+
+    /// The first bytes of a game method's compiled code, through the
+    /// interop class's NativeMethodInfoPtr_ field (an Il2CppMethodInfo*,
+    /// whose first field is the code pointer). Null if unavailable.
+    private static byte[]? NativeCode(MethodInfo method, int length)
+    {
+        try
+        {
+            var field = method.DeclaringType?.GetField(
+                "NativeMethodInfoPtr_" + method.Name,
+                BindingFlags.NonPublic | BindingFlags.Static
+            );
+            if (field?.GetValue(null) is not IntPtr info || info == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var code = Marshal.ReadIntPtr(info);
+            if (code == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var bytes = new byte[length];
+            Marshal.Copy(code, bytes, 0, length);
+            return bytes;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static bool Contains(byte[] haystack, byte[] needle)
+    {
+        for (var i = 0; i + needle.Length <= haystack.Length; i++)
+        {
+            var j = 0;
+            while (j < needle.Length && haystack[i + j] == needle[j])
+            {
+                j++;
+            }
+
+            if (j == needle.Length)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static PropertyInfo? _library;

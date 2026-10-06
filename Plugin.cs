@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.4.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.5.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
