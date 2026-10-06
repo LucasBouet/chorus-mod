@@ -127,6 +127,7 @@ public class MainMenuOverlay : MonoBehaviour
         // where the name gets set.
         HandleStreamerKey();
         ChartSelector.Tick();
+        ChallengeDownloader.Tick();
 
         var username = Plugin.TrophyUsername.Value.Trim();
         var visible = _onMainMenu && !Plugin.StreamerMode.Value;

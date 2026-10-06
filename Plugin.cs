@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.6.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.7.0")]
 public class Plugin : BasePlugin
 {
     public static ManualLogSource Logger = null!;
@@ -36,6 +36,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<string> TrophyUsername = null!;
     public static ConfigEntry<string> PlayerApiUrl = null!;
     public static ConfigEntry<string> ChallengeApiUrl = null!;
+    public static ConfigEntry<KeyCode> DuelKey = null!;
     public static ConfigEntry<bool> ToastTrophies = null!;
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
@@ -219,6 +220,13 @@ public class Plugin : BasePlugin
             "https://bdregieprod.com/ch_trophy_engine/api/challenge_api.php",
             "Trophy site duel endpoint (players, scores, sent, received, "
                 + "create). Feeds the DUELS window on the main menu."
+        );
+
+        DuelKey = Config.Bind(
+            "Trophies",
+            "DuelKey",
+            KeyCode.F8,
+            "Key to open/close the DUELS window from anywhere. None = no key."
         );
 
         ToastTrophies = Config.Bind(
