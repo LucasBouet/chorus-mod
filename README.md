@@ -271,7 +271,12 @@ settings window split into pages (arrows at the bottom, or Left /
 Right):
 
 1. **Notifications**: each toast on/off with a preview.
-2. **Gameplay**: the solo counter tweak.
+2. **Gameplay & streaming**: the solo counter tweak, and streamer
+   mode: hides everything the mod draws (player card, buttons,
+   notifications) while the search window and gameplay tweaks keep
+   working. Toggled with a key (`StreamerModeKey`, F10 by default).
+   With streamer mode on the SETTINGS button is hidden too: use the key
+   to turn it back off.
 3. **Trophy site**: Discord name (with a Detect button reading
    Rythmania Tracker), notification channel (masked), ntfy server,
    player profile API.
@@ -322,6 +327,7 @@ name reloads the player card.
 | `NtfyTopic` | *(empty)* | Topic to listen to over SSE. Empty = disabled. Treat it as a password. |
 | `Username` | auto-detected | Your trophy-site username: only your events get a toast. Read from `discordName` in `%APPDATA%\Rythmania Tracker\player.json` when empty. Empty = toast everyone's events. |
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
+| `ChallengeApiUrl` | trophy site `challenge_api.php` | Duel endpoint, used by the DUELS window. |
 
 Events (`trophy_unlocked`, `record_beaten`, `level_up`,
 `challenge_received`, `challenge_won`, `challenge_lost`,
@@ -337,6 +343,20 @@ keeps events for 12 hours), then goes on live.
 On the main menu only, a player card (top left) shows the `Username`'s
 avatar, trophy count, full combos, best score and latest trophy. With
 no `Username` set, it says so and the SETTINGS button stays reachable.
+
+The **DUELS** button (middle of the right edge) opens the duel window;
+a badge on it counts the challenges you still have to play. Three tabs:
+
+- **New challenge**: pick an opponent on the left (searchable) and one
+  of your scores on the right (search by title, artist or charter,
+  filter by instrument and difficulty, sort), then Send. Sending asks
+  for a second click to confirm, since the site allows only a few
+  challenges per 24 hours (the count left is shown at the top).
+  Keyboard: Tab switches list, Up / Down picks, Enter moves on.
+- **Received**: challenges to play first, then the finished ones (won /
+  lost, both scores). *Find chart* opens the search window on the song;
+  *Rematch* goes back to New challenge with the same player and chart.
+- **Sent**: your challenges, waiting or decided.
 
 The SETTINGS button under the card (mouse) opens the settings window
 (see [Configuration](#configuration)); its first page turns each kind
@@ -357,6 +377,7 @@ The same window has a Gameplay section, saved in `[Gameplay]`:
 | Key | Default | Role |
 | --- | --- | --- |
 | `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter in local multiplayer and while connected to an online server. |
+| `HideNewsPanel` | `false` | Hides the game's news panel on the main menu. |
 
 ---
 

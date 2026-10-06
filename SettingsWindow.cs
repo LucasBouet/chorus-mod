@@ -94,6 +94,8 @@ public class SettingsWindow : MonoBehaviour
     private const float MinPanelW = 900f;
     private const float MinPanelH = 660f;
 
+    private static readonly Color StreamerAccent = new(0.57f, 0.27f, 1f);
+
     private static SettingsWindow? _instance;
 
     private Page[] _pages = Array.Empty<Page>();
@@ -155,13 +157,13 @@ public class SettingsWindow : MonoBehaviour
             },
             new Page
             {
-                Title = "Gameplay",
+                Title = "Gameplay & streaming",
                 Sections = new[]
                 {
                     new Section
                     {
                         Title = "GAMEPLAY",
-                        Description = "Changes to the in-song display.",
+                        Description = "Changes to the game's own display.",
                         Settings = new[]
                         {
                             new Setting
@@ -170,6 +172,37 @@ public class SettingsWindow : MonoBehaviour
                                 Bool = Plugin.HideSoloCounterInMultiplayer,
                                 Title = "Hide solo counter in multiplayer",
                                 Description = "Hides the solo percentage in local multiplayer and whenever you're connected to an online server.",
+                            },
+                            new Setting
+                            {
+                                Kind = Kind.Toggle,
+                                Bool = Plugin.HideNewsPanel,
+                                Title = "Hide news panel",
+                                Description = "Hides the game's news panel on the main menu.",
+                            },
+                        },
+                    },
+                    new Section
+                    {
+                        Title = "STREAMER MODE",
+                        Description = "Hides everything the mod draws: player card, buttons, notifications. The search window and gameplay tweaks keep working.",
+                        Settings = new[]
+                        {
+                            new Setting
+                            {
+                                Kind = Kind.Toggle,
+                                Bool = Plugin.StreamerMode,
+                                Title = "Streamer mode",
+                                Description = "The SETTINGS button hides too: turn it back off with the key below.",
+                                Accent = StreamerAccent,
+                            },
+                            new Setting
+                            {
+                                Kind = Kind.Key,
+                                Key = Plugin.StreamerModeKey,
+                                Title = "Streamer mode key",
+                                Description = "Turns streamer mode on and off from anywhere in the game.",
+                                Accent = StreamerAccent,
                             },
                         },
                     },
@@ -391,6 +424,15 @@ public class SettingsWindow : MonoBehaviour
             Description = "Feeds the main-menu player card (called with ?discordName=).",
             Warning = UrlWarning,
             Changed = MainMenuOverlay.RequestRefresh,
+        },
+        new Setting
+        {
+            Kind = Kind.Text,
+            Text = Plugin.ChallengeApiUrl,
+            Title = "Duel API",
+            Description = "Feeds the DUELS window: players, your scores, challenges.",
+            Warning = UrlWarning,
+            Changed = DuelWindow.RequestRefresh,
         },
     };
 

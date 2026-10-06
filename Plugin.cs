@@ -35,6 +35,7 @@ public class Plugin : BasePlugin
     public static ConfigEntry<string> NtfyTopic = null!;
     public static ConfigEntry<string> TrophyUsername = null!;
     public static ConfigEntry<string> PlayerApiUrl = null!;
+    public static ConfigEntry<string> ChallengeApiUrl = null!;
     public static ConfigEntry<bool> ToastTrophies = null!;
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
@@ -42,6 +43,9 @@ public class Plugin : BasePlugin
     public static ConfigEntry<bool> ToastAnnouncements = null!;
     public static ConfigEntry<bool> ToastDuelResults = null!;
     public static ConfigEntry<bool> HideSoloCounterInMultiplayer = null!;
+    public static ConfigEntry<bool> HideNewsPanel = null!;
+    public static ConfigEntry<bool> StreamerMode = null!;
+    public static ConfigEntry<KeyCode> StreamerModeKey = null!;
 
     public override void Load()
     {
@@ -209,6 +213,14 @@ public class Plugin : BasePlugin
                 + "?discordName=<Username>. Feeds the main-menu player card."
         );
 
+        ChallengeApiUrl = Config.Bind(
+            "Trophies",
+            "ChallengeApiUrl",
+            "https://bdregieprod.com/ch_trophy_engine/api/challenge_api.php",
+            "Trophy site duel endpoint (players, scores, sent, received, "
+                + "create). Feeds the DUELS window on the main menu."
+        );
+
         ToastTrophies = Config.Bind(
             "Notifications",
             "TrophyUnlocked",
@@ -262,6 +274,30 @@ public class Plugin : BasePlugin
                 + "the SETTINGS button under the main-menu player card."
         );
 
+        HideNewsPanel = Config.Bind(
+            "Gameplay",
+            "HideNewsPanel",
+            false,
+            "Hides the game's news panel on the main menu (opacity only, the "
+                + "game keeps loading it)."
+        );
+
+        StreamerMode = Config.Bind(
+            "Streamer",
+            "StreamerMode",
+            false,
+            "Hides everything the mod draws on screen (player card, SETTINGS "
+                + "and quit buttons, notifications). What you open yourself, "
+                + "like the search window, and gameplay tweaks keep working."
+        );
+
+        StreamerModeKey = Config.Bind(
+            "Streamer",
+            "StreamerModeKey",
+            KeyCode.F10,
+            "Key turning streamer mode on and off. None = no key."
+        );
+
         if (string.IsNullOrWhiteSpace(TrophyUsername.Value))
         {
             var detected = DetectTrackerUsername();
@@ -296,11 +332,12 @@ public class Plugin : BasePlugin
         var host = new GameObject("ChorusMod.UI");
         UnityEngine.Object.DontDestroyOnLoad(host);
         host.hideFlags = HideFlags.HideAndDontSave;
-        host.AddComponent<ChorusUI>();
+        ChorusUI.Instance = host.AddComponent<ChorusUI>();
 
         Toast.Initialize();
         MainMenuOverlay.Initialize();
         SettingsWindow.Initialize();
+        DuelWindow.Initialize();
         GameplayTweaks.Initialize();
 
         TrophyListener.Start();
