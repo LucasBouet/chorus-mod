@@ -16,6 +16,7 @@ public enum PlayerLookupStatus
 public class PlayerInfo
 {
     public string Name = "";
+    public string Uuid = "";       // the site's id, for SiteLocalization
     public string AvatarUrl = "";
     public int Level;              // 0 = not provided
     public float LevelProgress;    // % toward the next level, 0-100
@@ -24,6 +25,7 @@ public class PlayerInfo
     public string BestSong = "";
     public long BestScore;
     public string LatestTrophy = "";
+    public int Mediators = -1;     // -1 = unknown (filled by the card)
 }
 
 public class PlayerLookup
@@ -35,7 +37,7 @@ public class PlayerLookup
 /// <summary>
 /// Client for the trophy site's player endpoint:
 ///   GET usr.php?discordName=&lt;name&gt;
-///   -> {"success":true, "player":{"name", "avatar", "level",
+///   -> {"success":true, "uid", "player":{"name", "avatar", "level",
 ///       "level_progress" (0-100), "trophy_count", "fc",
 ///       "best_score":{"song","score"}, "trophies":[{"name","icon",
 ///       "unlocked_at"}, ...]}}
@@ -81,6 +83,7 @@ public static class PlayerApi
             var info = new PlayerInfo
             {
                 Name = GetString(player, "name"),
+                Uuid = GetString(root, "uid"),
                 AvatarUrl = GetString(player, "avatar"),
                 TrophyCount = GetInt(player, "trophy_count"),
                 FullCombos = GetInt(player, "fc"),

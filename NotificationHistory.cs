@@ -35,6 +35,8 @@ public class Notification
         NotificationHistory.Level => TrophyListener.LevelAccent,
         NotificationHistory.DuelWon => TrophyListener.DuelWonAccent,
         NotificationHistory.DuelLost => TrophyListener.DuelLostAccent,
+        NotificationHistory.DuelDraw => TrophyListener.DuelDrawAccent,
+        NotificationHistory.Booster => TrophyListener.BoosterAccent,
         NotificationHistory.Challenge => TrophyListener.ChallengeAccent,
         NotificationHistory.Announcement => TrophyListener.AnnouncementAccent,
         _ => Toast.DefaultAccent,
@@ -75,6 +77,8 @@ public static class NotificationHistory
     public const string Level = "level";
     public const string DuelWon = "duel_won";
     public const string DuelLost = "duel_lost";
+    public const string DuelDraw = "duel_draw";
+    public const string Booster = "booster";
     public const string Challenge = "challenge";
     public const string Announcement = "announcement";
 

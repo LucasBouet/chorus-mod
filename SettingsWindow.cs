@@ -35,6 +35,7 @@ public class SettingsWindow : MonoBehaviour
         Key,
         Stepper,
         Choice,
+        Action,
     }
 
     private sealed class Setting
@@ -70,6 +71,15 @@ public class SettingsWindow : MonoBehaviour
         // Choice
         public string[] Choices = Array.Empty<string>();
         public ConfigEntry<string>? Choice;
+
+        // Action: one or two buttons, labels and description read live
+        public Func<string>? Live;            // replaces Description
+        public Func<string>? ButtonLabel;
+        public Func<bool>? ButtonEnabled;
+        public Action? Click;
+        public Func<string>? Button2Label;
+        public Func<bool>? Button2Enabled;
+        public Action? Click2;
     }
 
     private sealed class Section
@@ -137,6 +147,24 @@ public class SettingsWindow : MonoBehaviour
             _instance.SetOpen(true);
         }
     }
+
+    /// Opens straight on the Updates page (the UPDATE button).
+    public static void OpenUpdates()
+    {
+        if (_instance == null)
+        {
+            return;
+        }
+
+        Open();
+        var page = Array.FindIndex(_instance._pages, p => p.Title == UpdatesTitle);
+        if (page >= 0)
+        {
+            _instance.GoToPage(page);
+        }
+    }
+
+    private const string UpdatesTitle = "Updates";
 
     private void Start()
     {
@@ -249,6 +277,19 @@ public class SettingsWindow : MonoBehaviour
             },
             new Page
             {
+                Title = UpdatesTitle,
+                Sections = new[]
+                {
+                    new Section
+                    {
+                        Title = "UPDATES",
+                        Description = "New versions come from the mod's GitHub releases. Your settings are kept.",
+                        Settings = UpdateSettings(),
+                    },
+                },
+            },
+            new Page
+            {
                 Title = "Advanced",
                 Sections = new[]
                 {
@@ -266,6 +307,55 @@ public class SettingsWindow : MonoBehaviour
     // ---------------------------------------------------------------
     //  Page contents
     // ---------------------------------------------------------------
+    private static Setting[] UpdateSettings() => new[]
+    {
+        new Setting
+        {
+            Kind = Kind.Action,
+            Title = "Chorus Mod " + Plugin.Version,
+            Accent = Theme.Green,
+            Live = Updater.Describe,
+            ButtonLabel = () => Updater.Current == Updater.Status.Checking ? "Checking…" : "Check now",
+            ButtonEnabled = () => Updater.Current is not (Updater.Status.Checking or Updater.Status.Installing),
+            Click = Updater.CheckNow,
+            Button2Label = () => Updater.Current switch
+            {
+                Updater.Status.Installing => "Installing…",
+                Updater.Status.Installed => "Restart to apply",
+                _ => Updater.UpdateAvailable ? $"Install {Updater.LatestTag}" : "Install",
+            },
+            Button2Enabled = () => Updater.UpdateAvailable,
+            Click2 = Updater.Install,
+        },
+        new Setting
+        {
+            Kind = Kind.Action,
+            Title = "What's new",
+            Accent = Theme.Green,
+            Live = () => Updater.LatestTag.Length > 0
+                ? $"Changelog and manual download of {Updater.LatestTag} on GitHub."
+                : "Changelog and manual download on GitHub.",
+            ButtonLabel = () => "Open in browser",
+            Click = Updater.OpenReleasePage,
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.CheckForUpdates,
+            Title = "Check for updates",
+            Description = "At launch and every few hours; a toast says when a new version is out.",
+            Accent = Theme.Green,
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.AutoInstallUpdates,
+            Title = "Install automatically",
+            Description = "Installs a new version as soon as it's found; it's used from the next launch.",
+            Accent = Theme.Green,
+        },
+    };
+
     private static Setting[] NotificationSettings() => new[]
     {
         new Setting
@@ -334,7 +424,7 @@ public class SettingsWindow : MonoBehaviour
             Kind = Kind.Toggle,
             Bool = Plugin.ToastDuelResults,
             Title = "Duel result",
-            Description = "When a duel you took part in is decided: victory or defeat.",
+            Description = "When a duel you took part in is decided: victory, defeat or draw.",
             Accent = TrophyListener.DuelWonAccent,
             Preview = () =>
             {
@@ -354,6 +444,21 @@ public class SettingsWindow : MonoBehaviour
                     "Duel lost"
                 );
             },
+        },
+        new Setting
+        {
+            Kind = Kind.Toggle,
+            Bool = Plugin.ToastBoosters,
+            Title = "Boosters",
+            Description = "When you have enough Médiators to buy boosters.",
+            Accent = TrophyListener.BoosterAccent,
+            Preview = () => Toast.Show(
+                "500 Médiators",
+                "Tu peux acheter 3 boosters Rythmania et 1 booster Guitar Hero III.",
+                7f,
+                TrophyListener.BoosterAccent,
+                "Boosters available"
+            ),
         },
         new Setting
         {
@@ -433,6 +538,32 @@ public class SettingsWindow : MonoBehaviour
             Description = "Feeds the DUELS window: players, your scores, challenges.",
             Warning = UrlWarning,
             Changed = DuelWindow.RequestRefresh,
+        },
+        new Setting
+        {
+            Kind = Kind.Choice,
+            Choice = Plugin.Language,
+            Choices = SiteLocalization.Languages,
+            Title = "Language",
+            Description = "Trophy names and player card texts from the site: auto = your preference on the site.",
+            Changed = () =>
+            {
+                SiteLocalization.Invalidate();
+                MainMenuOverlay.RequestRefresh();
+            },
+        },
+        new Setting
+        {
+            Kind = Kind.Text,
+            Text = Plugin.LocalizationApiUrl,
+            Title = "Localization API",
+            Description = "Language, translated texts, trophy names and Médiators (called with ?uuid=).",
+            Warning = UrlWarning,
+            Changed = () =>
+            {
+                SiteLocalization.Invalidate();
+                MainMenuOverlay.RequestRefresh();
+            },
         },
         new Setting
         {
@@ -979,7 +1110,7 @@ public class SettingsWindow : MonoBehaviour
             : null;
         GUI.Label(
             new Rect(row.x + 18f, row.y + 30f, textW, 18f),
-            warning ?? data.Description,
+            warning ?? data.Live?.Invoke() ?? data.Description,
             warning != null && _warnStyle != null ? _warnStyle : S(Theme.Sub)
         );
 
@@ -1009,6 +1140,41 @@ public class SettingsWindow : MonoBehaviour
             case Kind.Choice:
                 DrawChoice(control, data);
                 break;
+            case Kind.Action:
+                DrawActions(control, data);
+                break;
+        }
+    }
+
+    /// Right-aligned buttons: the main one last (rightmost).
+    private static void DrawActions(Rect control, Setting data)
+    {
+        const float buttonW = 170f;
+        var x = control.xMax - buttonW;
+        foreach (var (label, enabled, click) in new[]
+        {
+            (data.Button2Label, data.Button2Enabled, data.Click2),
+            (data.ButtonLabel, data.ButtonEnabled, data.Click),
+        })
+        {
+            if (label == null || click == null)
+            {
+                continue;
+            }
+
+            var rect = new Rect(x, control.y, buttonW, ButtonH);
+            var on = enabled?.Invoke() ?? true;
+            var pill = data.Accent;
+            pill.a = on ? 0.6f : 0.1f;
+            Theme.Fill(new Rect(rect.x - 2f, rect.y - 2f, rect.width + 4f, rect.height + 4f), pill, 1);
+            GUI.enabled = on;
+            if (GUI.Button(rect, label()) && on)
+            {
+                click();
+            }
+
+            GUI.enabled = true;
+            x -= buttonW + 8f;
         }
     }
 

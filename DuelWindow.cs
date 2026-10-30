@@ -50,7 +50,8 @@ public class DuelWindow : MonoBehaviour
     private enum Filter
     {
         All,
-        Open,
+        ToPlay,
+        Waiting,
         Done,
     }
 
@@ -139,7 +140,12 @@ public class DuelWindow : MonoBehaviour
     public static bool IsOpen => _instance != null && _instance._open;
 
     /// Challenges received and not played yet; 0 while unknown.
+    /// Challenges (received or sent) where it's my turn to play; 0 while
+    /// unknown.
     public static int PendingCount { get; private set; }
+
+    private static int _pendingReceived;
+    private static int _pendingSent;
 
     /// Called once from Plugin.Load().
     public static void Initialize()
@@ -235,12 +241,14 @@ public class DuelWindow : MonoBehaviour
         {
             try
             {
+                // Both lists: the challenger plays too in the current system.
                 var received = await ChallengeApi.GetChallengesAsync(me, false).ConfigureAwait(false);
+                var sent = await ChallengeApi.GetChallengesAsync(me, true).ConfigureAwait(false);
                 _mainThread.Enqueue(() =>
                 {
                     if (me == Me())
                     {
-                        PendingCount = received.Count(IsOpenDuel);
+                        SetPending(received.Count(d => d.MyTurn), sent.Count(d => d.MyTurn));
                     }
 
                     _badgeFetching = false;
@@ -316,10 +324,31 @@ public class DuelWindow : MonoBehaviour
         Load(me, () => ChallengeApi.GetChallengesAsync(me, false), received =>
         {
             _received = received;
-            PendingCount = received.Count(IsOpenDuel);
-            _installed = ChartSelector.FindInstalled(received.Where(IsOpenDuel).Select(d => d.Checksum));
+            SetPending(received.Count(d => d.MyTurn), _pendingSent);
+            RefreshInstalled();
         });
-        Load(me, () => ChallengeApi.GetChallengesAsync(me, true), sent => _sent = sent);
+        Load(me, () => ChallengeApi.GetChallengesAsync(me, true), sent =>
+        {
+            _sent = sent;
+            SetPending(_pendingReceived, sent.Count(d => d.MyTurn));
+            RefreshInstalled();
+        });
+    }
+
+    private static void SetPending(int received, int sent)
+    {
+        _pendingReceived = received;
+        _pendingSent = sent;
+        PendingCount = received + sent;
+    }
+
+    /// Which of the songs I have to play are in the library.
+    private void RefreshInstalled()
+    {
+        var toPlay = (_received ?? new List<Duel>()).Concat(_sent ?? new List<Duel>())
+            .Where(d => d.MyTurn)
+            .Select(d => d.Checksum);
+        _installed = ChartSelector.FindInstalled(toPlay);
     }
 
     /// Runs one request off the main thread and applies its result on it,
@@ -400,8 +429,8 @@ public class DuelWindow : MonoBehaviour
                         _remaining--;
                     }
 
-                    SetStatus($"Challenge sent to {target}: {score.Title}, {Fmt(score.Score)} to beat.", Won);
-                    Toast.Show("Challenge sent", $"{target} · {score.Title} · {Fmt(score.Score)} to beat", 5f, Accent, "Duel");
+                    SetStatus($"Challenge sent to {target}: {score.Title}. You both play it now, the best score wins.", Won);
+                    Toast.Show("Challenge sent", $"{target} · {score.Title} · play it too!", 6f, Accent, "Duel");
 
                     _score = null;
                     _tab = Tab.Sent;
@@ -451,7 +480,7 @@ public class DuelWindow : MonoBehaviour
             Cursor.lockState = CursorLockMode.None;
 
             // Something to play first, otherwise straight to challenging.
-            _tab = PendingCount > 0 ? Tab.Received : Tab.New;
+            _tab = _pendingReceived > 0 ? Tab.Received : _pendingSent > 0 ? Tab.Sent : Tab.New;
             _listScroll = 0f;
             LoadAll();
         }
@@ -893,9 +922,6 @@ public class DuelWindow : MonoBehaviour
         return true;
     }
 
-    private static bool IsOpenDuel(Duel duel) =>
-        duel.Status is "" or "pending" or "open" or "active" or "waiting" or "sent";
-
     // ---------------------------------------------------------------
     //  Rendering
     // ---------------------------------------------------------------
@@ -945,10 +971,9 @@ public class DuelWindow : MonoBehaviour
         }
 
         // --- Tabs ---
-        var pending = _received?.Count(IsOpenDuel) ?? PendingCount;
         DrawTab(new Rect(x, y, 200f, 30f), Tab.New, "NEW CHALLENGE");
-        DrawTab(new Rect(x + 206f, y, 200f, 30f), Tab.Received, pending > 0 ? $"RECEIVED  ·  {pending} TO PLAY" : "RECEIVED");
-        DrawTab(new Rect(x + 412f, y, 200f, 30f), Tab.Sent, "SENT");
+        DrawTab(new Rect(x + 206f, y, 200f, 30f), Tab.Received, _pendingReceived > 0 ? $"RECEIVED  ·  {_pendingReceived} TO PLAY" : "RECEIVED");
+        DrawTab(new Rect(x + 412f, y, 200f, 30f), Tab.Sent, _pendingSent > 0 ? $"SENT  ·  {_pendingSent} TO PLAY" : "SENT");
         y += 42f;
         Theme.Fill(new Rect(x, y, w, 1f), Theme.FieldBg);
         y += 14f;
@@ -1228,7 +1253,7 @@ public class DuelWindow : MonoBehaviour
         if (_player == null && _score == null)
         {
             line1 = "Pick an opponent and one of your scores.";
-            line2 = "They get a notification and have to beat your score on the same chart, instrument and difficulty.";
+            line2 = "You both play it on the same chart, instrument and difficulty: the best score wins.";
         }
         else if (_score == null)
         {
@@ -1237,7 +1262,7 @@ public class DuelWindow : MonoBehaviour
         }
         else
         {
-            line1 = $"{_player ?? "…"}  must beat  {Fmt(_score.Score)}";
+            line1 = $"You  vs  {_player ?? "…"}  ·  your best so far {Fmt(_score.Score)}";
             line2 = $"{_score.Title}  ·  {_score.Artist}  ·  {Chart(_score.Instrument, _score.Difficulty, _score.Speed, _score.Modifiers)}";
         }
 
@@ -1281,16 +1306,17 @@ public class DuelWindow : MonoBehaviour
         var filter = sent ? _sentFilter : _receivedFilter;
 
         var y = area.y;
-        const float chipsW = 3f * 110f;
+        const float chipsW = 4f * 110f;
         DrawSearchField(new Rect(area.x, y, area.width - chipsW - 16f, FieldH), query, sent ? "Search by player or song…" : "Search by challenger or song…", true, () => { });
 
         var cx = area.xMax - chipsW;
-        foreach (var f in new[] { Filter.All, Filter.Open, Filter.Done })
+        foreach (var f in new[] { Filter.All, Filter.ToPlay, Filter.Waiting, Filter.Done })
         {
             var chip = new Rect(cx, y + 2f, 104f, FieldH - 4f);
             var label = f switch
             {
-                Filter.Open => sent ? "Waiting" : "To play",
+                Filter.ToPlay => "To play",
+                Filter.Waiting => "Waiting",
                 Filter.Done => "Finished",
                 _ => "All",
             };
@@ -1327,9 +1353,16 @@ public class DuelWindow : MonoBehaviour
 
         var me = Me();
         var shown = duels
-            .Where(d => filter == Filter.All || (filter == Filter.Open) == IsOpenDuel(d))
+            .Where(d => filter switch
+            {
+                Filter.ToPlay => d.MyTurn,
+                Filter.Waiting => d.Open && !d.MyTurn,
+                Filter.Done => !d.Open,
+                _ => true,
+            })
             .Where(d => Matches(query, d.Opponent, d.Song, d.Artist, d.Charter))
-            .OrderByDescending(d => !sent && IsOpenDuel(d)) // to play first
+            .OrderByDescending(d => d.MyTurn) // to play first, then waiting
+            .ThenByDescending(d => d.Open)
             .ThenByDescending(d => d.CreatedAt, StringComparer.Ordinal)
             .ToList();
 
@@ -1349,9 +1382,15 @@ public class DuelWindow : MonoBehaviour
 
     private void DrawDuel(Rect row, Duel duel, bool sent, string me, int index)
     {
-        var open = IsOpenDuel(duel);
-        var won = duel.Completed && string.Equals(duel.Winner, me, StringComparison.OrdinalIgnoreCase);
-        var color = open ? (sent ? Waiting : Accent) : duel.Completed ? (won ? Won : Lost) : Theme.TextDim;
+        var color = duel.MyTurn ? Accent
+            : duel.Open ? Waiting
+            : duel.Result switch
+            {
+                "won" => Won,
+                "lost" => Lost,
+                "draw" => Theme.Blue,
+                _ => Theme.TextDim,
+            };
 
         Theme.Fill(row, index % 2 == 0 ? Theme.RowEven : Theme.RowOdd, 1);
         Theme.Fill(new Rect(row.x, row.y, 4f, row.height), color, 1);
@@ -1360,7 +1399,7 @@ public class DuelWindow : MonoBehaviour
         const float buttonW = 130f;
         var button = new Rect(row.xMax - buttonW - 12f, row.y + (row.height - 28f) * 0.5f, buttonW, 28f);
         var leftmost = button.x;
-        if (!sent && open)
+        if (duel.MyTurn)
         {
             if (_installed.Contains(duel.Checksum))
             {
@@ -1390,7 +1429,7 @@ public class DuelWindow : MonoBehaviour
                 }
             }
         }
-        else if (duel.Completed)
+        else if (duel.Finished)
         {
             if (GUI.Button(button, "Rematch"))
             {
@@ -1401,25 +1440,7 @@ public class DuelWindow : MonoBehaviour
 
         const float stateW = 250f;
         var stateX = leftmost - stateW - 14f;
-        var mine = sent ? duel.ScoreToBeat : duel.ChallengedScore;
-        var theirs = sent ? duel.ChallengedScore : duel.ScoreToBeat;
-        string state;
-        string scores;
-        if (open)
-        {
-            state = sent ? "WAITING" : "TO PLAY";
-            scores = sent ? $"your score {Fmt(mine)}" : $"beat {Fmt(theirs)}";
-        }
-        else if (duel.Completed)
-        {
-            state = won ? "WON" : "LOST";
-            scores = $"{Fmt(mine)}  vs  {Fmt(theirs)}";
-        }
-        else
-        {
-            state = duel.Status.ToUpperInvariant();
-            scores = sent ? $"your score {Fmt(mine)}" : $"to beat {Fmt(theirs)}";
-        }
+        var (state, scores) = DuelState(duel);
 
         if (_colorStyle != null)
         {
@@ -1439,10 +1460,66 @@ public class DuelWindow : MonoBehaviour
         var textW = stateX - row.x - 30f;
         GUI.Label(new Rect(row.x + 14f, row.y + 10f, textW, 20f), Ellipsize(Join(duel.Song, duel.Artist), textW, 7.4f), S(Theme.Title));
         var who = sent ? $"To {duel.Opponent}" : $"From {duel.Opponent}";
-        var when = ShortDate(duel.Completed && duel.CompletedAt.Length > 0 ? duel.CompletedAt : duel.CreatedAt);
+        var when = ShortDate(duel.Finished && duel.CompletedAt.Length > 0 ? duel.CompletedAt : duel.CreatedAt);
         var details = $"{who}  ·  {Chart(duel.Instrument, duel.Difficulty, duel.Speed, duel.Modifiers)}{(when.Length > 0 ? "  ·  " + when : "")}";
         GUI.Label(new Rect(row.x + 14f, row.y + 34f, textW, 18f), Ellipsize(details, textW, 6.4f), S(Theme.Sub));
     }
+
+    /// The row's state line and scores line.
+    private static (string State, string Scores) DuelState(Duel duel)
+    {
+        var mine = duel.MyScore;
+        var theirs = duel.TheirScore;
+
+        if (duel.Finished)
+        {
+            var result = duel.Result switch
+            {
+                "won" => SiteLocalization.T("challenge.won", "Won"),
+                "lost" => SiteLocalization.T("challenge.lost", "Lost"),
+                _ => "Draw",
+            };
+            return (result.ToUpperInvariant(), $"{Fmt(mine)}  vs  {Fmt(theirs)}");
+        }
+
+        if (!duel.Open)
+        {
+            return (duel.Status.Replace("_", " ").ToUpperInvariant(), "");
+        }
+
+        if (duel.Legacy)
+        {
+            return duel.Sent
+                ? ($"WAITING FOR {duel.Opponent.ToUpperInvariant()}", $"your score {Fmt(mine)}")
+                : ("TO PLAY", $"beat {Fmt(theirs)}");
+        }
+
+        // Current system: both play; a score shows once it's in.
+        var played = JoinScores(
+            mine > 0 ? $"you {Fmt(mine)}" : "",
+            duel.TheyPlayed ? (theirs > 0 ? $"{duel.Opponent} {Fmt(theirs)}" : $"{duel.Opponent} played") : ""
+        );
+        if (duel.AwaitingResults)
+        {
+            return ("RESULTS PENDING", played);
+        }
+
+        if (duel.MyTurn)
+        {
+            return (
+                duel.Status == "waiting_both" ? "TO PLAY  ·  BOTH" : "YOUR TURN",
+                played.Length > 0 ? played : "nobody has played yet"
+            );
+        }
+
+        var waiting = duel.Sent
+            ? SiteLocalization.T("challenge.waiting_target", $"Waiting for {duel.Opponent}")
+            : SiteLocalization.T("challenge.waiting_challenger", $"Waiting for {duel.Opponent}");
+        return (waiting.ToUpperInvariant(), played);
+    }
+
+    private static string JoinScores(string a, string b) =>
+        a.Length == 0 ? b : b.Length == 0 ? a : $"{a}  ·  {b}";
 
     // --- Shared ----------------------------------------------------
 
