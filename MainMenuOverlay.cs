@@ -71,6 +71,8 @@ public class MainMenuOverlay : MonoBehaviour
 
     private GameObject? _levelBlock;
     private TextMeshProUGUI? _levelText;
+    private TextMeshProUGUI? _cardLabel;
+    private TextMeshProUGUI? _levelCaption;
     private RectTransform? _xpFill;
     private TextMeshProUGUI? _xpText;
     private float _xpTarget;  // 0-1
@@ -184,6 +186,12 @@ public class MainMenuOverlay : MonoBehaviour
         Task.Run(async () =>
         {
             var result = await PlayerApi.FetchAsync(username).ConfigureAwait(false);
+            if (result.Player != null)
+            {
+                // Same round: translated labels and the Médiators balance.
+                result.Player.Mediators = await SiteLocalization.RefreshAsync(result.Player.Uuid).ConfigureAwait(false);
+            }
+
             Volatile.Write(ref _lookupResult, result);
         });
     }
@@ -230,9 +238,12 @@ public class MainMenuOverlay : MonoBehaviour
     private void ShowPlayer(PlayerInfo player)
     {
         _hasPlayer = true;
+        ApplyLabels();
         SetTexts(
             player.Name,
-            $"{player.TrophyCount} trophies  ·  {player.FullCombos} FC  ·  "
+            $"{player.TrophyCount} {SiteLocalization.T("overlay.trophies", "trophies")}  ·  "
+                + $"{player.FullCombos} {SiteLocalization.T("overlay.full_combos", "FC")}  ·  "
+                + (player.Mediators >= 0 ? $"{TrophyListener.FormatScore(player.Mediators.ToString())} Médiators  ·  " : "")
                 + $"Best {TrophyListener.FormatScore(player.BestScore.ToString())}",
             JoinNonEmpty(
                 player.BestSong.Length > 0 ? $"Best on {player.BestSong}" : "",
@@ -247,6 +258,20 @@ public class MainMenuOverlay : MonoBehaviour
             _avatarUrl = player.AvatarUrl;
             _avatarApplied = false;
             SetAvatar(null);
+        }
+    }
+
+    /// Card captions in the site's language, once it has them.
+    private void ApplyLabels()
+    {
+        if (_cardLabel != null)
+        {
+            _cardLabel.text = SiteLocalization.T("overlay.player", "Player").ToUpperInvariant();
+        }
+
+        if (_levelCaption != null)
+        {
+            _levelCaption.text = SiteLocalization.T("overlay.level", "Level").ToUpperInvariant();
         }
     }
 
@@ -517,6 +542,7 @@ public class MainMenuOverlay : MonoBehaviour
             var label = UiKit.Text(panel, "Label", font, 11f, FontStyles.Bold, Accent);
             label.characterSpacing = 6f;
             label.text = "PLAYER";
+            _cardLabel = label;
             UiKit.Place(label.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(TextLeft, -26f), new Vector2(-TextRight, -12f));
 
             _nameText = UiKit.Text(panel, "Name", font, 22f, FontStyles.Bold, Color.white);
@@ -579,6 +605,7 @@ public class MainMenuOverlay : MonoBehaviour
 
         var caption = UiKit.Text(block, "Caption", font, 9f, FontStyles.Bold, LevelAccent);
         caption.text = "LEVEL";
+        _levelCaption = caption;
         caption.characterSpacing = 4f;
         caption.alignment = TextAlignmentOptions.Center;
         UiKit.Place(caption.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-90f, -88f), new Vector2(-10f, -74f));

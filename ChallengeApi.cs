@@ -29,9 +29,18 @@ public class DuelScore
 }
 
 /// A challenge, sent or received.
+///
+/// Two systems live side by side on the site:
+///  - legacy: the challenger's existing score is the one to beat, only the
+///    target plays (status pending, then completed);
+///  - the current one: both players play the song after the challenge is
+///    sent (waiting_both, then waiting_challenger / waiting_target as each
+///    one plays, awaiting_results, then won / lost / draw).
+/// display_status and my_result are already from the viewer's side.
 public class Duel
 {
     public int Id;
+    public bool Sent;              // I'm the challenger
     public string Opponent = "";   // the target (sent) or the challenger (received)
     public string Checksum = "";
     public string Song = "";
@@ -39,16 +48,95 @@ public class Duel
     public string Charter = "";
     public string Instrument = "";
     public string Difficulty = "";
-    public long ScoreToBeat;       // the challenger's score
-    public long ChallengedScore;   // 0 until played
+    public long ScoreToBeat;       // legacy: the challenger's score
+    public long ChallengedScore;   // legacy: the target's, 0 until played
+    public long ChallengerScore;   // 0 until played
+    public long TargetScore;
+    public bool ChallengerPlayed;
+    public bool TargetPlayed;
     public int Speed = 100;
     public string Modifiers = "";
-    public string Status = "";     // "completed", or still open
+    public string Mode = "";       // "legacy" or the current system
+    public string Status = "";     // lower case, see above
+    public string DisplayStatus = "";
+    public string MyResult = "";   // won / lost / draw, "" until decided
     public string Winner = "";
     public string CreatedAt = "";
     public string CompletedAt = "";
 
-    public bool Completed => Status == "completed";
+    public bool Legacy => Mode == "legacy" || (Mode.Length == 0 && Status == "pending");
+
+    /// Decided: won, lost or draw.
+    public bool Finished =>
+        MyResult.Length > 0
+        || Status is "completed" or "finished" or "won" or "lost" or "draw" or "done"
+        || DisplayStatus is "won" or "lost" or "draw";
+
+    /// Not decided, and not dead either (expired, cancelled...).
+    public bool Open => !Finished && !Closed;
+
+    public bool Closed => Status is "expired" or "cancelled" or "canceled" or "declined" or "refused";
+
+    /// It's up to me to play the song.
+    public bool MyTurn
+    {
+        get
+        {
+            if (!Open)
+            {
+                return false;
+            }
+
+            if (Legacy)
+            {
+                return !Sent; // only the target plays
+            }
+
+            return Status switch
+            {
+                "waiting_both" => true,
+                "waiting_challenger" => Sent,
+                "waiting_target" => !Sent,
+                "awaiting_results" => false,
+                // Unknown open status: whoever hasn't played yet.
+                _ => Sent ? !ChallengerPlayed : !TargetPlayed,
+            };
+        }
+    }
+
+    /// Both have played, the site is settling it.
+    public bool AwaitingResults => Open && Status == "awaiting_results";
+
+    /// won / lost / draw from my side, "" if not decided.
+    public string Result
+    {
+        get
+        {
+            if (!Finished)
+            {
+                return "";
+            }
+
+            foreach (var value in new[] { MyResult, DisplayStatus, Status })
+            {
+                if (value is "won" or "lost" or "draw")
+                {
+                    return value;
+                }
+            }
+
+            // Legacy completed: by the winner's name.
+            return Winner.Length == 0 ? "draw"
+                : string.Equals(Winner, Opponent, StringComparison.OrdinalIgnoreCase) ? "lost" : "won";
+        }
+    }
+
+    /// My score and the opponent's, 0 when not played (or not known).
+    public long MyScore => Legacy ? (Sent ? ScoreToBeat : ChallengedScore) : (Sent ? ChallengerScore : TargetScore);
+
+    public long TheirScore => Legacy ? (Sent ? ChallengedScore : ScoreToBeat) : (Sent ? TargetScore : ChallengerScore);
+
+    public bool TheyPlayed => Legacy ? (Sent ? ChallengedScore > 0 || Finished : true) : (Sent ? TargetPlayed : ChallengerPlayed);
 }
 
 /// players: who can be challenged, plus today's quota.
@@ -65,6 +153,8 @@ public class DuelRoster
 ///   GET  ?action=scores&amp;discordName=   -> {"remaining","scores":[{"key","title",...}]}
 ///   GET  ?action=sent&amp;discordName=     -> {"challenges":[{"target":{"name"},...}]}
 ///   GET  ?action=received&amp;discordName= -> {"challenges":[{"challenger":{"name"},...}]}
+///   (each with mode, status, display_status, my_result, challenger_score,
+///   target_score, challenger_has_played, target_has_played: see Duel)
 ///   POST ?action=create  {"discordName","targetDiscordName","challenge_key"}
 /// Failures come back as {"success":false,"error":"CODE"}.
 ///
@@ -146,9 +236,12 @@ public static class ChallengeApi
                 ? GetString(who, "name")
                 : "";
 
+            var challengerScore = GetLong(c, "challenger_score");
+            var targetScore = GetLong(c, "target_score");
             duels.Add(new Duel
             {
                 Id = GetInt(c, "id", 0),
+                Sent = sent,
                 Opponent = opponent,
                 Checksum = GetString(c, "checksum"),
                 Song = Fallback(GetString(c, "song"), "(untitled)"),
@@ -158,9 +251,16 @@ public static class ChallengeApi
                 Difficulty = GetString(c, "difficulty"),
                 ScoreToBeat = GetLong(c, "score_to_beat"),
                 ChallengedScore = GetLong(c, "challenged_score"),
+                ChallengerScore = challengerScore,
+                TargetScore = targetScore,
+                ChallengerPlayed = GetBool(c, "challenger_has_played") || challengerScore > 0,
+                TargetPlayed = GetBool(c, "target_has_played") || targetScore > 0,
                 Speed = GetInt(c, "playback_speed_percent", GetInt(c, "playback_speed", 100)),
                 Modifiers = GetString(c, "modifiers"),
+                Mode = GetString(c, "mode").ToLowerInvariant(),
                 Status = GetString(c, "status").ToLowerInvariant(),
+                DisplayStatus = GetString(c, "display_status").ToLowerInvariant(),
+                MyResult = GetString(c, "my_result").ToLowerInvariant(),
                 Winner = GetString(c, "winner_name"),
                 CreatedAt = GetString(c, "created_at"),
                 CompletedAt = GetString(c, "completed_at"),
@@ -292,6 +392,11 @@ public static class ChallengeApi
             _ => "",
         };
     }
+
+    private static bool GetBool(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+        && (value.ValueKind == JsonValueKind.True
+            || (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var n) && n != 0));
 
     private static int GetInt(JsonElement element, string name, int fallback)
     {

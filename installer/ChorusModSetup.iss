@@ -31,7 +31,7 @@
 ; ============================================================================
 
 #define MyAppName "Chorus Mod"
-#define MyAppVersion "1.7"
+#define MyAppVersion "1.8"
 #define MyAppPublisher "Lucas"
 #define BepInExVersion "6.0.0-be.755"
 ; ntfy topic the trophy site publishes to, pre-filled on the Trophies
@@ -113,7 +113,7 @@ var
   BtnBrowseSongs: TButton;
 
   TrophiesPage: TWizardPage;
-  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges, ChkToastAnnouncements, ChkToastDuelResults: TCheckBox;
+  ChkTrophies, ChkToastTrophies, ChkToastRecords, ChkToastLevels, ChkToastChallenges, ChkToastAnnouncements, ChkToastDuelResults, ChkToastBoosters: TCheckBox;
   EdtUsername, EdtTopic: TEdit;
 
 // ---------------------------------------------------------------------
@@ -199,6 +199,7 @@ begin
   ChkToastChallenges.Enabled := Enabled;
   ChkToastAnnouncements.Enabled := Enabled;
   ChkToastDuelResults.Enabled := Enabled;
+  ChkToastBoosters.Enabled := Enabled;
 end;
 
 function NewHint(Page: TWizardPage; Top, Left: Integer; Text: String): TNewStaticText;
@@ -305,7 +306,9 @@ begin
   ChkToastChallenges := NewCheck(TrophiesPage, Y, 230, 'Someone challenges you to a duel');
   Y := Y + 22;
   ChkToastAnnouncements := NewCheck(TrophiesPage, Y, 12, 'The trophy site makes an announcement');
-  ChkToastDuelResults := NewCheck(TrophiesPage, Y, 230, 'One of your duels is won or lost');
+  ChkToastDuelResults := NewCheck(TrophiesPage, Y, 230, 'One of your duels is decided');
+  Y := Y + 22;
+  ChkToastBoosters := NewCheck(TrophiesPage, Y, 12, 'You can buy boosters');
 
   UpdateTrophyControls(nil);
 end;
@@ -559,6 +562,7 @@ begin
     StringChangeEx(ConfigText, '{{TOAST_CHALLENGES}}', BoolToCfg(ChkToastChallenges.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_ANNOUNCEMENTS}}', BoolToCfg(ChkToastAnnouncements.Checked), True);
     StringChangeEx(ConfigText, '{{TOAST_DUEL_RESULTS}}', BoolToCfg(ChkToastDuelResults.Checked), True);
+    StringChangeEx(ConfigText, '{{TOAST_BOOSTERS}}', BoolToCfg(ChkToastBoosters.Checked), True);
 
     // The plugin refuses to install a song if this folder doesn't exist
     // yet -- create it now rather than letting the first download fail.

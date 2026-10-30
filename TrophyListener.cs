@@ -58,6 +58,8 @@ public static class TrophyListener
     internal static readonly Color AnnouncementAccent = new(0.25f, 0.92f, 0.78f);
     internal static readonly Color DuelWonAccent = new(0.32f, 0.90f, 0.42f);
     internal static readonly Color DuelLostAccent = new(0.58f, 0.63f, 0.74f);
+    internal static readonly Color DuelDrawAccent = new(0.38f, 0.62f, 1f);
+    internal static readonly Color BoosterAccent = new(0.96f, 0.42f, 0.86f);
 
     // Announcements are free text meant to be read: longer on screen.
     private const float AnnouncementSeconds = 8f;
@@ -386,7 +388,11 @@ public static class TrophyListener
                 return;
             }
 
-            root.TryGetProperty("payload", out var payload);
+            // Most events carry "payload"; newer ones (boosters) "data".
+            if (!root.TryGetProperty("payload", out var payload))
+            {
+                root.TryGetProperty("data", out payload);
+            }
 
             // Duel results name their recipient only inside the payload.
             var username = GetString(root, "username");
@@ -442,15 +448,26 @@ public static class TrophyListener
                     );
                     // No icon: the game's TMP font has no emoji glyphs,
                     // it would render as a missing-character box.
+                {
+                    // In the player's language when the site has it.
+                    var trophyName = GetString(payload, "name");
+                    var trophyText = GetString(payload, "description");
+                    if (SiteLocalization.TryTrophy(GetString(payload, "trophy_id"), out var localName, out var localText))
+                    {
+                        trophyName = localName;
+                        trophyText = localText.Length > 0 ? localText : trophyText;
+                    }
+
                     Notify(
                         Plugin.ToastTrophies.Value,
                         NotificationHistory.Trophy,
                         "Trophy unlocked",
-                        GetString(payload, "name"),
-                        GetString(payload, "description"),
+                        trophyName,
+                        trophyText,
                         ToastSeconds
                     );
                     break;
+                }
 
                 case "record_beaten":
                     Plugin.Logger.LogInfo(
@@ -507,18 +524,31 @@ public static class TrophyListener
 
                 case "challenge_won":
                 case "challenge_lost":
+                case "challenge_draw":
                 {
                     var won = GetString(root, "event") == "challenge_won";
+                    var draw = GetString(root, "event") == "challenge_draw";
                     var opponent = GetString(payload, "opponent_name");
                     var (mine, theirs) = DuelScores(payload, opponent);
                     var song = GetString(payload, "song");
                     Plugin.Logger.LogInfo(
-                        $"[Duel] {user}: {(won ? "won" : "lost")} against {opponent} on "
+                        $"[Duel] {user}: {(draw ? "draw" : won ? "won" : "lost")} against {opponent} on "
                             + $"{GetString(payload, "artist")} - {song} "
                             + $"({GetString(payload, "instrument")} {GetString(payload, "difficulty")}), "
                             + $"{mine} vs {theirs} (challenge #{GetString(payload, "challenge_id")})"
                     );
-                    if (won)
+                    if (draw)
+                    {
+                        Notify(
+                            Plugin.ToastDuelResults.Value,
+                            NotificationHistory.DuelDraw,
+                            "Duel draw",
+                            "Draw",
+                            $"vs {opponent} · {DuelResultMessage(song, mine, theirs)}",
+                            ToastSeconds + 1f
+                        );
+                    }
+                    else if (won)
                     {
                         Notify(
                             Plugin.ToastDuelResults.Value,
@@ -567,11 +597,78 @@ public static class TrophyListener
                     );
                     break;
 
+                case "tcg_booster_available":
+                {
+                    var balance = FormatScore(GetString(payload, "balance"));
+                    var currency = Currency(GetString(payload, "currency"));
+                    var unlocked = Names(payload, "new_milestones", "booster_name");
+                    Plugin.Logger.LogInfo(
+                        $"[Boosters] {user}: {balance} {currency}, can buy "
+                            + $"{BoosterList(payload)}{(unlocked.Length > 0 ? $", new: {unlocked}" : "")}"
+                    );
+
+                    var summary = GetString(payload, "summary");
+                    Notify(
+                        Plugin.ToastBoosters.Value,
+                        NotificationHistory.Booster,
+                        SiteLocalization.T("tcg.booster_available", "Boosters available"),
+                        unlocked.Length > 0 ? $"{balance} {currency} · new: {unlocked}" : $"{balance} {currency}",
+                        summary.Length > 0 ? summary : BoosterList(payload),
+                        ToastSeconds + 2f
+                    );
+                    break;
+                }
+
                 default:
                     Plugin.Logger.LogInfo($"Trophies: unknown event: {message}");
                     break;
             }
         }
+    }
+
+    /// "mediators" -> "Médiators"; anything else as sent.
+    private static string Currency(string currency) =>
+        currency.Length == 0 || currency.Equals("mediators", StringComparison.OrdinalIgnoreCase)
+            ? "Médiators"
+            : currency;
+
+    /// "Rythmania ×3 · Guitar Hero III ×1"
+    private static string BoosterList(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("boosters", out var boosters) || boosters.ValueKind != JsonValueKind.Array)
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        foreach (var booster in boosters.EnumerateArray())
+        {
+            var quantity = GetString(booster, "quantity");
+            parts.Add(quantity.Length > 0 ? $"{GetString(booster, "name")} ×{quantity}" : GetString(booster, "name"));
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// The `field` of every object in the `array`, comma-separated.
+    private static string Names(JsonElement payload, string array, string field)
+    {
+        if (!payload.TryGetProperty(array, out var items) || items.ValueKind != JsonValueKind.Array)
+        {
+            return "";
+        }
+
+        var names = new List<string>();
+        foreach (var item in items.EnumerateArray())
+        {
+            var name = GetString(item, field);
+            if (name.Length > 0)
+            {
+                names.Add(name);
+            }
+        }
+
+        return string.Join(", ", names);
     }
 
     /// The duel participant who isn't the opponent: the one the event is
@@ -610,7 +707,9 @@ public static class TrophyListener
         string difficulty,
         string scoreToBeat
     ) =>
-        $"{challenger} challenges you · {instrument} {difficulty} · beat {FormatScore(scoreToBeat)}";
+        $"{challenger} challenges you · {instrument} {difficulty}"
+            // Only legacy challenges have a score to beat: now both play.
+            + (scoreToBeat.Length > 0 && scoreToBeat != "0" ? $" · beat {FormatScore(scoreToBeat)}" : " · you both play it");
 
     /// Saved state: {"key": "<sse url>", "time": <unix>, "ids": [...]}.
     /// Call under Gate.

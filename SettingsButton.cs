@@ -98,7 +98,14 @@ public class SettingsButton
 
         if (hovered && Input.GetMouseButtonDown(0))
         {
-            SettingsWindow.Open();
+            if (Updater.UpdateAvailable)
+            {
+                SettingsWindow.OpenUpdates();
+            }
+            else
+            {
+                SettingsWindow.Open();
+            }
         }
     }
 
@@ -109,9 +116,13 @@ public class SettingsButton
             return;
         }
 
+        // A new version: the button says so and pulses green.
+        var update = Updater.UpdateAvailable;
+        _label.text = update ? "UPDATE" : "SETTINGS";
         _background.color = hovered ? HoverBackground : UiKit.PanelColor;
-        _label.color = hovered ? Color.white : UiKit.MutedText;
-        var border = UiKit.WithAlpha(Accent, hovered ? 0.7f : 0.25f);
+        _label.color = hovered ? Color.white : update ? Theme.Green : UiKit.MutedText;
+        var pulse = 0.45f + 0.35f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 3f));
+        var border = UiKit.WithAlpha(update ? Theme.Green : Accent, hovered ? 0.7f : update ? pulse : 0.25f);
         foreach (var edge in _border)
         {
             edge.color = border;

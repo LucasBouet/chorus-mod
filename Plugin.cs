@@ -11,9 +11,12 @@ using UnityEngine;
 
 namespace ChorusMod;
 
-[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", "1.7.0")]
+[BepInPlugin("fr.lucas.chorus-mod", "Chorus Mod", Version)]
 public class Plugin : BasePlugin
 {
+    /// Compared with the GitHub releases' tags (V1.8) by the Updater.
+    public const string Version = "1.8.0";
+
     public static ManualLogSource Logger = null!;
 
     public static ConfigEntry<string> SongsFolder = null!;
@@ -37,6 +40,11 @@ public class Plugin : BasePlugin
     public static ConfigEntry<string> PlayerApiUrl = null!;
     public static ConfigEntry<string> ChallengeApiUrl = null!;
     public static ConfigEntry<KeyCode> DuelKey = null!;
+    public static ConfigEntry<string> LocalizationApiUrl = null!;
+    public static ConfigEntry<string> Language = null!;
+    public static ConfigEntry<bool> ToastBoosters = null!;
+    public static ConfigEntry<bool> CheckForUpdates = null!;
+    public static ConfigEntry<bool> AutoInstallUpdates = null!;
     public static ConfigEntry<bool> ToastTrophies = null!;
     public static ConfigEntry<bool> ToastRecords = null!;
     public static ConfigEntry<bool> ToastLevels = null!;
@@ -222,6 +230,22 @@ public class Plugin : BasePlugin
                 + "create). Feeds the DUELS window on the main menu."
         );
 
+        LocalizationApiUrl = Config.Bind(
+            "Trophies",
+            "LocalizationApiUrl",
+            "https://bdregieprod.com/ch_trophy_engine/api/player_localization.php",
+            "Trophy site endpoint for the player's language, translated texts "
+                + "and trophy names, and Médiators balance (called with ?uuid=)."
+        );
+
+        Language = Config.Bind(
+            "Trophies",
+            "Language",
+            "auto",
+            "Language of the trophy site's texts (trophy names, player card "
+                + "labels...): auto = your preference on the site, or fr / en."
+        );
+
         DuelKey = Config.Bind(
             "Trophies",
             "DuelKey",
@@ -265,6 +289,13 @@ public class Plugin : BasePlugin
             "Toast when a duel you took part in is decided (won or lost)."
         );
 
+        ToastBoosters = Config.Bind(
+            "Notifications",
+            "BoosterAvailable",
+            true,
+            "Toast when you have enough Médiators to buy boosters."
+        );
+
         ToastAnnouncements = Config.Bind(
             "Notifications",
             "Announcement",
@@ -297,6 +328,22 @@ public class Plugin : BasePlugin
             "Hides everything the mod draws on screen (player card, SETTINGS "
                 + "and quit buttons, notifications). What you open yourself, "
                 + "like the search window, and gameplay tweaks keep working."
+        );
+
+        CheckForUpdates = Config.Bind(
+            "Updates",
+            "CheckForUpdates",
+            true,
+            "Looks for a new version of the mod on GitHub at launch and every "
+                + "few hours, and says so when there is one."
+        );
+
+        AutoInstallUpdates = Config.Bind(
+            "Updates",
+            "AutoInstall",
+            false,
+            "Installs a new version as soon as it's found (active at the next "
+                + "launch). Off: install it from SETTINGS > Updates."
         );
 
         StreamerModeKey = Config.Bind(
@@ -350,6 +397,7 @@ public class Plugin : BasePlugin
         GameplayTweaks.Initialize();
 
         TrophyListener.Start();
+        Updater.Start();
 
         Logger.LogInfo($"Press {ToggleKey.Value} in-game to open Chorus Mod.");
     }

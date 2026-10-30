@@ -329,6 +329,8 @@ name reloads the player card.
 | `PlayerApiUrl` | trophy site `usr.php` | Player profile endpoint (`?discordName=`), used by the main-menu player card. |
 | `ChallengeApiUrl` | trophy site `challenge_api.php` | Duel endpoint, used by the DUELS window. |
 | `DuelKey` | `F8` | Key to open/close the DUELS window from anywhere (`None` = no key). |
+| `LocalizationApiUrl` | trophy site `player_localization.php` | Language, translated texts, trophy names and Médiators (`?uuid=`). |
+| `Language` | `auto` | Language of the site's texts: `auto` (your preference on the site), `fr` or `en`. |
 
 Events (`trophy_unlocked`, `record_beaten`, `level_up`,
 `challenge_received`, `challenge_won`, `challenge_lost`,
@@ -342,12 +344,19 @@ and the next launch first catches up on everything since then (ntfy.sh
 keeps events for 12 hours), then goes on live.
 
 On the main menu only, a player card (top left) shows the `Username`'s
-avatar, trophy count, full combos, best score and latest trophy. With
-no `Username` set, it says so and the SETTINGS button stays reachable.
+avatar, trophy count, full combos, Médiators, best score and latest
+trophy. Its labels, and trophy names in notifications, come in the
+player's language on the site (`Language`, `auto` by default) when the
+site has a translation. With no `Username` set, it says so and the
+SETTINGS button stays reachable.
 
 The **DUELS** button (middle of the right edge), or `F8` from anywhere
 (`DuelKey`), opens the duel window;
-a badge on it counts the challenges you still have to play. Three tabs:
+a badge on it counts the challenges you still have to play. Both
+players play the song once a challenge is sent: it waits for both, then
+for whoever hasn't played, then the site settles it (won, lost or
+draw). Older challenges, where only the target played to beat the
+challenger's score, still show. Three tabs:
 
 - **New challenge**: pick an opponent on the left (searchable) and one
   of your scores on the right (search by title, artist or charter,
@@ -355,8 +364,10 @@ a badge on it counts the challenges you still have to play. Three tabs:
   for a second click to confirm, since the site allows only a few
   challenges per 24 hours (the count left is shown at the top).
   Keyboard: Tab switches list, Up / Down picks, Enter moves on.
-- **Received**: challenges to play first, then the finished ones (won /
-  lost, both scores). *Select* (chart installed) closes the window, opens Quickplay
+- **Received**: challenges to play first, then the ones waiting for the
+  other player, then the finished ones (won / lost / draw, both scores).
+  Any challenge you still have to play, received or sent, gets *Select*
+  (chart installed) closes the window, opens Quickplay
   and jumps the song list to the chart (if opening Quickplay fails on
   your game build, open it yourself: the chart still gets selected); a toast recalls the
   instrument, difficulty, speed and modifiers to pick. When the chart
@@ -366,7 +377,8 @@ a badge on it counts the challenges you still have to play. Three tabs:
   installs it, rescans and then selects it like *Select*. *Find chart*
   opens the search window on the song instead;
   *Rematch* goes back to New challenge with the same player and chart.
-- **Sent**: your challenges, waiting or decided.
+- **Sent**: your challenges, to play, waiting or decided, with the same
+  buttons. Both lists filter on All / To play / Waiting / Finished.
 
 The **NOTIFS** button, under DUELS, opens the history of the trophy
 site's notifications: every one meant for you, toasted or not (that
@@ -390,7 +402,8 @@ of toast on or off and previews it. Choices are saved in
 | `RecordBeaten` | `true` | Toast when one of your records is beaten. |
 | `LevelUp` | `true` | Toast when you level up. |
 | `ChallengeReceived` | `true` | Toast when another player challenges you to a duel. |
-| `ChallengeResult` | `true` | Toast when one of your duels is won (green, with an animation) or lost. |
+| `ChallengeResult` | `true` | Toast when one of your duels is won (green, with an animation), lost or drawn. |
+| `BoosterAvailable` | `true` | Toast when you have enough Médiators to buy boosters (`tcg_booster_available`). |
 | `Announcement` | `true` | Toast for announcements sent to every player (`global_notification`, shown whatever `Username` is). |
 
 The same window has a Gameplay section, saved in `[Gameplay]`:
@@ -399,6 +412,26 @@ The same window has a Gameplay section, saved in `[Gameplay]`:
 | --- | --- | --- |
 | `HideSoloCounterInMultiplayer` | `false` | Hides the solo percentage counter in local multiplayer and while connected to an online server. |
 | `HideNewsPanel` | `false` | Hides the game's news panel on the main menu. |
+
+### `[Updates]`
+
+New versions come from this repository's GitHub releases (tag `V1.8`,
+asset `ChorusMod.dll`). A check runs a few seconds after launch, then
+every 6 hours; when a newer version is out, a toast says so and the
+SETTINGS button under the player card turns into a green **UPDATE**
+button that opens SETTINGS > Updates. That page shows the installed and
+latest versions, with *Check now*, *Install* and a link to the release
+on GitHub.
+
+Installing renames the running `ChorusMod.dll` to `ChorusMod.dll.old`
+(Windows doesn't let a loaded DLL be overwritten, but does let it be
+renamed) and writes the new one in its place: it's used from the next
+launch, and the `.old` copy is deleted then. The `.cfg` isn't touched.
+
+| Key | Default | Role |
+| --- | --- | --- |
+| `CheckForUpdates` | `true` | Checks GitHub at launch and every few hours. |
+| `AutoInstall` | `false` | Installs a new version as soon as it's found, without asking. |
 
 ---
 

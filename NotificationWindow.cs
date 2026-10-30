@@ -28,6 +28,7 @@ public class NotificationWindow : MonoBehaviour
         Records,
         Levels,
         Duels,
+        Boosters,
         Announcements,
     }
 
@@ -377,7 +378,7 @@ public class NotificationWindow : MonoBehaviour
             }
             else
             {
-                empty = "No notification yet: trophies, records, levels, duels and announcements will show up here.";
+                empty = "No notification yet: trophies, records, levels, duels, boosters and announcements will show up here.";
             }
 
             GUI.Label(new Rect(area.x + 4f, area.y + 6f, area.width, 20f), empty, S(Theme.Sub));
@@ -494,6 +495,7 @@ public class NotificationWindow : MonoBehaviour
         Filter.Records => "Records",
         Filter.Levels => "Levels",
         Filter.Duels => "Duels",
+        Filter.Boosters => "Boosters",
         Filter.Announcements => "Announcements",
         _ => "All",
     };
@@ -504,7 +506,9 @@ public class NotificationWindow : MonoBehaviour
         Filter.Trophies => n.Kind == NotificationHistory.Trophy,
         Filter.Records => n.Kind == NotificationHistory.Record,
         Filter.Levels => n.Kind == NotificationHistory.Level,
-        Filter.Duels => n.Kind is NotificationHistory.Challenge or NotificationHistory.DuelWon or NotificationHistory.DuelLost,
+        Filter.Duels => n.Kind is NotificationHistory.Challenge or NotificationHistory.DuelWon
+            or NotificationHistory.DuelLost or NotificationHistory.DuelDraw,
+        Filter.Boosters => n.Kind == NotificationHistory.Booster,
         Filter.Announcements => n.Kind == NotificationHistory.Announcement,
         _ => true,
     };
